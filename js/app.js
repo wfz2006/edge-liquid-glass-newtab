@@ -140,6 +140,23 @@
       layout: { search: { x: 0, y: 0 }, tiles: { x: 0, y: 0 }, todo: { x: 0, y: 0 }, weather: { x: 0, y: 0 } }
     };
   }
+  function isExactShortcutList(items, expected) {
+    if (!Array.isArray(items) || items.length !== expected.length) return false;
+    for (var i = 0; i < expected.length; i++) {
+      if (!items[i] || items[i].n !== expected[i].n || items[i].u !== expected[i].u) return false;
+    }
+    return true;
+  }
+
+  function isUntouchedLegacyDefault(o) {
+    if (!o || typeof o !== "object" || o.seedVersion === DEFAULT_SEED_VERSION) return false;
+    if (Array.isArray(o.shortcuts)) return isExactShortcutList(o.shortcuts, DEFAULT_SHORTCUTS);
+    if (!Array.isArray(o.pages) || o.pages.length !== 1) return false;
+    var p = o.pages[0];
+    return !!p && p.id === "home" && p.name === "首页" &&
+      isExactShortcutList(p.items, DEFAULT_SHORTCUTS);
+  }
+
   function normalize(o) {
     var d = defaults();
     function normPos(v) {
@@ -147,6 +164,7 @@
               isFinite(v.x) && isFinite(v.y)) ? { x: v.x, y: v.y } : null;
     }
     if (!o || typeof o !== "object") return d;
+    var migrateLegacyDefaults = isUntouchedLegacyDefault(o);
     if (Array.isArray(o.pages)) {
       d.pages = o.pages.slice(0, 20).map(function (p, i) {
         if (!p || typeof p !== "object") return null;
@@ -235,6 +253,17 @@
     }
     if (typeof o.drops === "boolean") d.drops = o.drops;
     if (typeof o.activePage === "string") d.activePage = o.activePage;
+    if (migrateLegacyDefaults) {
+      var oldHome = d.pages[0];
+      var migratedPages = defaultPages();
+      ["cal", "todo", "note", "cd"].forEach(function (k) {
+        if (oldHome && oldHome[k]) migratedPages[0][k] = oldHome[k];
+      });
+      if (oldHome && oldHome.noteText) migratedPages[0].noteText = oldHome.noteText;
+      d.pages = migratedPages;
+      d.activePage = "common";
+    }
+    d.seedVersion = DEFAULT_SEED_VERSION;
     var hasActive = false;
     d.pages.forEach(function (p) { if (p.id === d.activePage) hasActive = true; });
     if (!hasActive) d.activePage = d.pages[0].id;
@@ -257,16 +286,28 @@
   }
   var store = {
     load: function (cb) {
+      function finish(raw) {
+        var state = normalize(raw);
+        if (raw && typeof raw === "object" && raw.seedVersion !== DEFAULT_SEED_VERSION) {
+          var payload = {};
+          payload[KEY] = state;
+          if (HAS_CHROME) chrome.storage.local.set(payload, noop);
+          else {
+            try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+          }
+        }
+        cb(state);
+      }
       if (HAS_CHROME) {
         chrome.storage.local.get(KEY, function (o) {
-          cb(normalize(o && o[KEY]));
+          finish(o && o[KEY]);
         });
       } else {
         var raw = null;
-        try { raw = localStorage.getItem(KEY); } catch (e) { raw = null; }
+        try { raw = localStorage.getItem(KEY); } catch (e2) { raw = null; }
         var parsed = null;
-        try { parsed = raw ? JSON.parse(raw) : null; } catch (e2) { parsed = null; }
-        cb(normalize(parsed));
+        try { parsed = raw ? JSON.parse(raw) : null; } catch (e3) { parsed = null; }
+        finish(parsed);
       }
     },
     save: function (patch) {
