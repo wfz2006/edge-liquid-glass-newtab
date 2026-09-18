@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>新标签页</title>
+<link rel="stylesheet" href="css/newtab.css">
+</head>
+<body>
+
+<div class="wall" id="wall"></div>
+<div class="tex" id="tex"></div>
+<div class="vig"></div>
+
+<svg id="glass-defs" width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden"></svg>
+
+<!-- 时钟/日期用的 SVG 定义（玻璃字需要把文字当遮罩，所以文字得画在 SVG 里） -->
+<svg id="textDefs" width="0" height="0" aria-hidden="true" style="position:absolute;overflow:hidden">
+  <defs>
+    <!-- 文字用的玻璃渐变填充：顶部高光 → 中段透光 → 底部反射光，模仿真实玻璃的厚度变化 -->
+    <linearGradient id="gtFill" x1="0" y1="0" x2="0.15" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.97"></stop>
+      <stop offset="0.42" stop-color="#ffffff" stop-opacity="0.60"></stop>
+      <stop offset="0.64" stop-color="#ffffff" stop-opacity="0.46"></stop>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.84"></stop>
+    </linearGradient>
+
+    <!-- 时钟 / 日期：把字本身做成玻璃。
+         同一份文字放两处——遮罩里用纯白（取 luminance=1 的形状），
+         可见层用玻璃渐变填充 + 亮描边，中间夹一层 backdrop-filter 得到磨砂玻璃的字。 -->
+    <mask id="clockMask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse">
+      <text id="gmClock" class="gtMaskBig" x="280" y="88" text-anchor="middle">--:--</text>
+      <text id="gmDate" class="gtMaskSmall" x="280" y="122" text-anchor="middle">—</text>
+    </mask>
+  </defs>
+</svg>
+
+<div class="page">
+
+  <header class="topbar">
+    <div class="glass chip" data-glass id="wxChip">
+      <span class="dot" id="wxDot"></span><span id="wxChipText">天气加载中</span>
+    </div>
+    <button class="glass chip iconbtn clickable" data-glass id="btnSettings" title="设置" aria-label="设置">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3.1"></circle>
+        <path d="M19.5 14.6a1.7 1.7 0 0 0 .34 1.87l.06.06a2.06 2.06 0 1 1-2.91 2.91l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2.06 2.06 0 1 1-4.12 0v-.1a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2.06 2.06 0 1 1-2.91-2.91l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2.06 2.06 0 1 1 0-4.12h.1A1.7 1.7 0 0 0 4.66 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06A2.06 2.06 0 1 1 7.17 3.76l.06.06a1.7 1.7 0 0 0 1.87.34H9.1a1.7 1.7 0 0 0 1.03-1.56V2.5a2.06 2.06 0 1 1 4.12 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2.06 2.06 0 1 1 2.91 2.91l-.06.06a1.7 1.7 0 0 0-.34 1.87v.05a1.7 1.7 0 0 0 1.56 1.03h.1a2.06 2.06 0 1 1 0 4.12h-.1a1.7 1.7 0 0 0-1.56 1.03z"></path>
+      </svg>
+    </button>
+  </header>
+
+  <main class="hero">
+    <div class="clockbox" id="clockBox" role="img" aria-label="当前时间">
+      <div class="clockGlass" id="clockGlass" aria-hidden="true"></div>
+      <div class="clockTint" aria-hidden="true"></div>
+      <svg class="clockSvg" viewBox="0 0 560 146" width="560" height="146" aria-hidden="true">
+        <text id="gvClock" class="gtBig" x="280" y="88" text-anchor="middle">--:--</text>
+        <text id="gvDate" class="gtSmall" x="280" y="122" text-anchor="middle">—</text>
+      </svg>
+    </div>
+
+    <div class="searchwrap" id="searchWrap">
+      <form class="glass search" data-glass id="searchForm" autocomplete="off">
+        <input id="q" type="text" placeholder="搜索，或直接输入网址" aria-label="搜索">
+      </form>
+      <button type="button" class="glass sbtn engine" data-glass id="engineBtn" title="选择搜索引擎" aria-haspopup="menu" aria-expanded="false">
+        <span id="engineName">Bing</span>
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+      <button type="submit" form="searchForm" class="glass sbtn go" data-glass id="goBtn">搜索</button>
+      <div class="emenu" id="engineMenu" role="menu" aria-label="搜索引擎"></div>
+      <div class="smenu" id="smenu" role="listbox" aria-label="搜索建议"></div>
+    </div>
+
+    <div class="tiles" id="tiles">
+      <div class="tgrid" id="tileGrid"></div>
+    </div>
+
+    <!-- 小组件行：按页可选，横排换行，各自可拖动 -->
+    <div class="wgrow" id="wgRow">
+      <section class="glass calwrap" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="calWrap" aria-label="日历">
+      <button type="button" class="calx" id="calX" title="从本页移除日历" aria-label="从本页移除日历">×</button>
+      <div class="calhead">
+        <button type="button" class="calnav" id="calPrev" title="上个月" aria-label="上个月">‹</button>
+        <div class="calm" id="calTitle">—</div>
+        <button type="button" class="calnav" id="calNext" title="下个月" aria-label="下个月">›</button>
+      </div>
+      <div class="caldow"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+      <div class="calgrid" id="calGrid"></div>
+    </section>
+
+    <!-- 待办小组件（清单全局，显示按页） -->
+    <aside class="glass todo" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="todoWrap" aria-label="待办清单">
+      <button type="button" class="calx" id="todoX" title="从本页移除待办" aria-label="从本页移除待办">×</button>
+      <div class="wtitle">待办</div>
+      <div class="todoadd">
+        <input id="todoInput" maxlength="60" placeholder="添加待办，回车确认" aria-label="添加待办">
+        <button type="button" id="todoAdd" title="添加">＋</button>
+      </div>
+      <div class="todolist" id="todoList"></div>
+    </aside>
+
+    <!-- 便签小组件（内容随页独立） -->
+    <aside class="glass note" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="noteWrap" aria-label="便签">
+      <button type="button" class="calx" id="noteX" title="从本页移除便签" aria-label="从本页移除便签">×</button>
+      <div class="wtitle">便签</div>
+      <textarea id="noteText" placeholder="记点什么…自动保存（每页独立）" aria-label="便签内容"></textarea>
+    </aside>
+
+    <!-- 倒数日小组件（事件全局，显示按页） -->
+    <aside class="glass cd" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="cdWrap" aria-label="倒数日">
+      <button type="button" class="calx" id="cdX" title="从本页移除倒数日" aria-label="从本页移除倒数日">×</button>
+      <div class="wtitle">倒数日</div>
+      <div id="cdBody"></div>
+    </aside>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="pager" id="pager" role="tablist" aria-label="页面切换"></div>
+    <div class="hints">
+      <span><kbd>/</kbd> 聚焦搜索</span>
+      <span><kbd>Esc</kbd> 关闭面板</span>
+      <span>左缘唤出收集板</span>
+      <span id="glInfo">液态玻璃：检测中</span>
+    </div>
+  </footer>
+</div>
+
+<!-- 天气详情：点击右上角天气 chip 展开 -->
+<div class="wpop" id="wxPop" data-glass data-lg-str=".07" data-lg-band=".11" data-lg-disp=".5" aria-hidden="true">
+  <div class="wphead">
+    <span class="wpcity" id="wpCity">—</span>
+    <button type="button" class="wpclose" id="wxPopClose" title="关闭" aria-label="关闭">×</button>
+  </div>
+  <div class="wpnow" id="wpNow"></div>
+  <div class="wpsec">
+    <div class="wplabel">未来 24 小时</div>
+    <div class="wpcurve" id="wpCurve"></div>
+  </div>
+  <div class="wpsec">
+    <div class="wplabel">未来 5 天</div>
+    <div class="wpdays" id="wpDays"></div>
+  </div>
+</div>
+
+<div class="drops" id="drops">
+  <div id="dropRefr"></div>
+  <div id="dropSkin"></div>
+</div>
+
+<div class="sheet" id="sheet">
+  <div class="sheetbox" id="sheetBox" data-glass data-lg-str=".07" data-lg-band=".11" data-lg-disp=".5">
+    <h2>设置</h2>
+    <div class="sheetbody">
+
+      <div class="sect">
+        <label>液态玻璃</label>
+        <div class="srow"><span class="lb">折射强度</span><input type="range" id="pStr" min="0.04" max="0.6" step="0.01"><span class="val" id="vStr"></span></div>
+        <div class="srow"><span class="lb">折射带宽</span><input type="range" id="pBand" min="0.06" max="0.45" step="0.01"><span class="val" id="vBand"></span></div>
+        <div class="srow"><span class="lb">色散</span><input type="range" id="pDisp" min="0" max="3" step="0.1"><span class="val" id="vDisp"></span></div>
+      </div>
+
+      <div class="sect">
+        <label>壁纸</label>
+        <div class="walls" id="walls"></div>
+        <div class="srow"><span class="lb">图片直链</span><input type="text" id="wallUrl" placeholder="https://example.com/wallpaper.jpg" aria-label="壁纸图片地址"></div>
+        <div class="seg" id="wallMode">
+          <button type="button" data-m="preset">渐变</button>
+          <button type="button" data-m="url">图片直链</button>
+          <button type="button" data-m="bing">必应每日</button>
+        </div>
+      </div>
+
+      <div class="sect">
+        <label>天气</label>
+        <div class="srow"><span class="lb">预设城市</span><div class="seg" id="citySeg"></div></div>
+        <div class="srow"><span class="lb">自定义</span><input type="text" id="citySearch" placeholder="输入城市名，回车搜索（支持全球）"><button type="button" class="ghostbtn" id="btnGeo" title="使用浏览器当前位置">定位</button></div>
+      </div>
+
+      <div class="sect">
+        <label>小组件</label>
+        <div class="srow"><span class="lb">本页日历</span><div class="seg" id="calSeg">
+          <button type="button" data-c="on">显示</button><button type="button" data-c="off">隐藏</button>
+        </div></div>
+        <div class="srow"><span class="lb">本页待办</span><div class="seg" id="todoSeg">
+          <button type="button" data-c="on">显示</button><button type="button" data-c="off">隐藏</button>
+        </div></div>
+        <div class="srow"><span class="lb">本页便签</span><div class="seg" id="noteSeg">
+          <button type="button" data-c="on">显示</button><button type="button" data-c="off">隐藏</button>
+        </div></div>
+        <div class="srow"><span class="lb">本页倒数日</span><div class="seg" id="cdSeg">
+          <button type="button" data-c="on">显示</button><button type="button" data-c="off">隐藏</button>
+        </div></div>
+        <div class="srow"><span class="lb">说明</span><span class="hint" style="flex:1">小组件按页独立：只在开启的页面显示，摆位也随页保存；便签内容每页各一份</span></div>
+      </div>
+
+      <div class="sect">
+        <label>其他</label>
+        <div class="srow"><span class="lb">纹理强度</span><input type="range" id="pTex" min="0" max="2" step="0.05"><span class="val" id="vTex"></span></div>
+        <div class="srow"><span class="lb">打开方式</span><div class="seg" id="openSeg">
+          <button type="button" data-o="cur">当前页</button><button type="button" data-o="new">新标签</button>
+        </div></div>
+        <div class="srow"><span class="lb">液态水滴</span><div class="seg" id="dropSeg">
+          <button type="button" data-d="on">开</button><button type="button" data-d="off">关</button>
+        </div></div>
+        <div class="srow"><span class="lb">页面布局</span><div class="seg">
+          <button type="button" id="btnResetLayout">复位拖动过的模块</button>
+        </div></div>
+      </div>
+
+      <div class="sect">
+        <label>数据</label>
+        <div class="srow"><span class="lb">备份</span>
+          <button type="button" class="ghostbtn" id="btnExport">导出数据</button>
+          <button type="button" class="ghostbtn" id="btnImport">导入数据</button>
+          <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+        </div>
+      </div>
+
+    </div>
+    <div class="sheetfoot">
+      <button type="button" class="btnp ghost" id="btnReset">恢复默认</button>
+      <button type="button" class="btnp" id="btnCloseSheet">完成</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog" id="dialog">
+  <div class="dlgbox" id="dlgBox" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5">
+    <h3 id="dlgTitle">编辑快捷方式</h3>
+    <div class="fld"><span>名称</span><input id="dlgName" type="text" placeholder="例如 GitHub" aria-label="名称"></div>
+    <div class="fld"><span>网址</span><input id="dlgUrl" type="text" placeholder="https://github.com" aria-label="网址"></div>
+    <div class="dlgfoot">
+      <button type="button" class="btnp ghost" id="dlgDel">删除</button>
+      <button type="button" class="btnp" id="dlgSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 收集板：默认隐藏，鼠标移到屏幕最左缘（或往左缘拖东西 / 粘贴）唤出 -->
+<div class="sbzone" id="sbZone" title="收集板"></div>
+<aside class="sbar" id="sbar" aria-label="收集板">
+  <div class="sbRefr" data-glass data-lg-str=".09" data-lg-band=".13" data-lg-disp=".5" aria-hidden="true"></div>
+  <div class="sbhead">
+    <span class="sbtitle">收集板</span>
+    <span class="sbmeta" id="sbMeta">0 项</span>
+    <button type="button" class="sbadd" id="sbAdd" title="手动添加" aria-label="手动添加">+</button>
+  </div>
+  <div class="sbcanvas" id="sbCanvas"></div>
+  <div class="sbhint">拖入链接 / 图片 / 文字 · 支持 Ctrl+V 粘贴 · Esc 关闭</div>
+</aside>
+
+<div class="dialog" id="sbDlg">
+  <div class="dlgbox" id="sbDlgBox" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5">
+    <h3 id="sbDlgHead">添加到收集板</h3>
+    <div class="fld"><span>类型</span>
+      <div class="seg" id="sbDlgType">
+        <button type="button" data-t="link">链接</button>
+        <button type="button" data-t="image">图片</button>
+        <button type="button" data-t="text">笔记</button>
+      </div>
+    </div>
+    <div class="fld"><span>标题</span><input id="sbDlgName" type="text" placeholder="可选"></div>
+    <div class="fld" id="sbFldUrl"><span id="sbUrlLabel">网址</span><input id="sbDlgUrl" type="text" placeholder="https://"></div>
+    <div class="fld" id="sbFldText" style="display:none"><span>内容</span><textarea id="sbDlgText" placeholder="记点什么…"></textarea></div>
+    <div class="dlgfoot">
+      <button type="button" class="btnp ghost" id="sbDlgDel">删除</button>
+      <button type="button" class="btnp" id="sbDlgSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" data-glass data-lg-str=".3" data-lg-band=".35" data-lg-disp=".6"></div>
+
+<script src="js/liquid-glass.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

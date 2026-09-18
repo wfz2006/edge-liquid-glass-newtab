@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Liquid Glass 新标签页",
+  "version": "1.3.0",
+  "description": "iOS 26 液态玻璃（Liquid Glass）风格新标签页：时钟、搜索（联想/历史）、快捷方式、日历、天气详情、收集板（全网页可召出）、数据备份。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["js/content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["_favicon*"], "matches": ["http://*/*", "https://*/*"] }
+  ],
+  "permissions": ["storage", "unlimitedStorage", "favicon"],
+  "host_permissions": [
+    "https://api.open-meteo.com/*",
+    "https://geocoding-api.open-meteo.com/*",
+    "https://www.bing.com/*",
+    "https://api.bing.com/*",
+    "https://www.baidu.com/*",
+    "https://duckduckgo.com/*",
+    "https://www.google.com/*"
+  ]
+}
