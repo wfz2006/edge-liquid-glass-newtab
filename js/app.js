@@ -49,6 +49,68 @@
     { n: "MDN",     u: "https://developer.mozilla.org" },
     { n: "Stack Overflow", u: "https://stackoverflow.com" }
   ];
+  var DEFAULT_SEED_VERSION = 2;
+  var DEFAULT_PAGES = [
+    { id: "common", name: "常用", items: [
+      ["百度", "https://www.baidu.com"], ["Bing", "https://www.bing.com"],
+      ["GitHub", "https://github.com"], ["哔哩哔哩", "https://www.bilibili.com"],
+      ["知乎", "https://www.zhihu.com"], ["淘宝", "https://www.taobao.com"],
+      ["京东", "https://www.jd.com"], ["微信网页版", "https://wx.qq.com"]
+    ] },
+    { id: "development", name: "开发编程", items: [
+      ["GitHub", "https://github.com"], ["GitLab", "https://gitlab.com"],
+      ["Gitee", "https://gitee.com"], ["Stack Overflow", "https://stackoverflow.com"],
+      ["MDN", "https://developer.mozilla.org"], ["npm", "https://www.npmjs.com"],
+      ["Docker", "https://www.docker.com"], ["Vercel", "https://vercel.com"]
+    ] },
+    { id: "learning", name: "学习资料", items: [
+      ["Wikipedia", "https://www.wikipedia.org"], ["Google Scholar", "https://scholar.google.com"],
+      ["中国大学MOOC", "https://www.icourse163.org"], ["学堂在线", "https://www.xuetangx.com"],
+      ["Coursera", "https://www.coursera.org"], ["edX", "https://www.edx.org"],
+      ["Microsoft Learn", "https://learn.microsoft.com"], ["W3Schools", "https://www.w3schools.com"]
+    ] },
+    { id: "news", name: "资讯社区", items: [
+      ["少数派", "https://sspai.com"], ["IT之家", "https://www.ithome.com"],
+      ["36氪", "https://36kr.com"], ["澎湃新闻", "https://www.thepaper.cn"],
+      ["Hacker News", "https://news.ycombinator.com"], ["Reddit", "https://www.reddit.com"],
+      ["豆瓣", "https://www.douban.com"], ["知乎", "https://www.zhihu.com"]
+    ] },
+    { id: "entertainment", name: "视频娱乐", items: [
+      ["哔哩哔哩", "https://www.bilibili.com"], ["YouTube", "https://www.youtube.com"],
+      ["Twitch", "https://www.twitch.tv"], ["Steam", "https://store.steampowered.com"],
+      ["腾讯视频", "https://v.qq.com"], ["网易云音乐", "https://music.163.com"],
+      ["Spotify", "https://open.spotify.com"], ["豆瓣", "https://www.douban.com"]
+    ] },
+    { id: "productivity", name: "工具效率", items: [
+      ["Notion", "https://www.notion.so"], ["Google Drive", "https://drive.google.com"],
+      ["腾讯文档", "https://docs.qq.com"], ["WPS", "https://www.wps.cn"],
+      ["Canva", "https://www.canva.com"], ["Figma", "https://www.figma.com"],
+      ["Trello", "https://trello.com"], ["番茄钟", "https://pomofocus.io"]
+    ] },
+    { id: "ai", name: "AI 工具", items: [
+      ["ChatGPT", "https://chatgpt.com"], ["DeepSeek", "https://chat.deepseek.com"],
+      ["Claude", "https://claude.ai"], ["Gemini", "https://gemini.google.com"],
+      ["Hugging Face", "https://huggingface.co"], ["Perplexity", "https://www.perplexity.ai"],
+      ["Poe", "https://poe.com"], ["OpenRouter", "https://openrouter.ai"]
+    ] },
+    { id: "life", name: "生活消费", items: [
+      ["淘宝", "https://www.taobao.com"], ["京东", "https://www.jd.com"],
+      ["美团", "https://www.meituan.com"], ["大众点评", "https://www.dianping.com"],
+      ["携程", "https://www.ctrip.com"], ["什么值得买", "https://www.smzdm.com"],
+      ["12306", "https://www.12306.cn"], ["高德地图", "https://www.amap.com"]
+    ] }
+  ];
+  function defaultPages() {
+    return DEFAULT_PAGES.map(function (p) {
+      return {
+        id: p.id,
+        name: p.name,
+        items: p.items.map(function (x) { return { n: x[0], u: x[1] }; }),
+        cal: p.id === "common" ? { x: 0, y: 0 } : null,
+        todo: p.id === "common" ? { x: 0, y: 0 } : null
+      };
+    });
+  }
   var G0 = { band: 0.16, str: 0.22, disp: 1 };
 
   /* ---------------- 状态与存储 ---------------- */
@@ -59,12 +121,12 @@
 
   function defaults() {
     return {
-      pages: [{ id: "home", name: "首页", items: DEFAULT_SHORTCUTS.map(function (s) { return { n: s.n, u: s.u }; }), cal: { x: 0, y: 0 }, todo: { x: 0, y: 0 } }],
+      seedVersion: DEFAULT_SEED_VERSION,
+      pages: defaultPages(),
       calMig: true,   /* 全新安装无需迁移 */
       todos: [],
       cd: null,
-      activePage: "home",
-      todos: [],
+      activePage: "common",
       sidebar: [],
       searchHistory: [],
       engine: "bing",
