@@ -12,10 +12,13 @@
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
+  "background": {
+    "service_worker": "js/background.js"
+  },
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["js/content.js"],
+      "js": ["js/collection-board-core.js", "js/content.js"],
       "run_at": "document_idle",
       "all_frames": false
     }
@@ -23,14 +26,18 @@
   "web_accessible_resources": [
     { "resources": ["_favicon*"], "matches": ["http://*/*", "https://*/*"] }
   ],
-  "permissions": ["storage", "unlimitedStorage", "favicon"],
+  "permissions": ["storage", "unlimitedStorage", "favicon", "bookmarks", "history", "sessions", "tabs", "windows", "tabGroups", "contextMenus", "notifications"],
   "host_permissions": [
     "https://api.open-meteo.com/*",
+    "https://air-quality-api.open-meteo.com/*",
     "https://geocoding-api.open-meteo.com/*",
     "https://www.bing.com/*",
     "https://api.bing.com/*",
     "https://www.baidu.com/*",
     "https://duckduckgo.com/*",
-    "https://www.google.com/*"
+    "https://www.google.com/*",
+    "https://calendar.google.com/*",
+    "https://outlook.live.com/*",
+    "https://outlook.office.com/*"
   ]
 }

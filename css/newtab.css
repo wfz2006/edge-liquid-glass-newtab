@@ -31,6 +31,7 @@ body{
   background-size:cover;background-position:center;
   transition:background-image .5s ease;
 }
+.wall-video{position:fixed;inset:0;z-index:-3;width:100%;height:100%;object-fit:cover;display:none;pointer-events:none}
 .tex{
   position:fixed;inset:0;z-index:-2;pointer-events:none;
   opacity:calc(.26 * var(--tex));
@@ -58,9 +59,7 @@ body{
 }
 .glass::before{
   content:"";position:absolute;inset:0;z-index:1;border-radius:inherit;pointer-events:none;
-  background:
-    radial-gradient(170px 120px at var(--mx,50%) var(--my,-140%),rgba(255,255,255,.5),rgba(255,255,255,0) 68%),
-    linear-gradient(158deg,rgba(255,255,255,.13),rgba(255,255,255,.02) 46%,rgba(255,255,255,.10));
+  background:linear-gradient(158deg,rgba(255,255,255,.13),rgba(255,255,255,.02) 46%,rgba(255,255,255,.10));
 }
 .glass::after{
   content:"";position:absolute;inset:0;z-index:2;border-radius:inherit;pointer-events:none;
@@ -93,9 +92,11 @@ body{
 .iconbtn{width:40px;height:40px;padding:0;justify-content:center;border-radius:999px;cursor:pointer}
 .iconbtn svg{width:18px;height:18px;display:block}
 button{font:inherit;color:inherit;background:none;border:none}
-.glass.clickable{cursor:pointer;transition:transform .3s cubic-bezier(.2,.9,.25,1.1),box-shadow .3s;will-change:transform}
-.glass.clickable:hover{transform:translateY(-3px)}
-.glass.clickable:active{transform:translateY(-1px) scale(.985)}
+/* 不移动带 backdrop-filter 的玻璃层：Chromium 在 hover 合成层变化时
+   也可能复用旧采样，造成其它卡片出现竖向彩色残影。用阴影表达反馈。 */
+.glass.clickable{cursor:pointer;transition:box-shadow .3s cubic-bezier(.2,.9,.25,1.1)}
+.glass.clickable:hover{box-shadow:0 14px 32px rgba(8,14,34,.34)}
+.glass.clickable:active{box-shadow:0 8px 20px rgba(8,14,34,.28)}
 
 /* ---------- Hero：时钟 / 搜索 ---------- */
 .hero{
@@ -117,8 +118,8 @@ button{font:inherit;color:inherit;background:none;border:none}
 }
 .clockSvg{position:absolute;inset:0;overflow:visible}
 .clockGlass{
-  -webkit-backdrop-filter:blur(7px) saturate(190%) brightness(1.24);
-  backdrop-filter:blur(7px) saturate(190%) brightness(1.24);
+  -webkit-backdrop-filter:blur(6px) saturate(145%) brightness(1.08);
+  backdrop-filter:blur(6px) saturate(145%) brightness(1.08);
 }
 .clockTint{background:rgba(255,255,255,.09)}
 .gtBig,.gtMaskBig,.gtSmall,.gtMaskSmall{
@@ -150,9 +151,9 @@ button{font:inherit;color:inherit;background:none;border:none}
 .search{
   width:100%;height:58px;border-radius:999px;
   display:flex;align-items:center;
-  transition:transform .38s cubic-bezier(.2,.9,.25,1.1);
+  transition:box-shadow .38s cubic-bezier(.2,.9,.25,1.1);
 }
-.search:focus-within{transform:scale(1.018)}
+.search:focus-within{box-shadow:0 16px 38px rgba(8,14,34,.32)}
 .search input{
   flex:1;min-width:0;height:100%;
   background:none;border:none;outline:none;
@@ -191,14 +192,18 @@ button{font:inherit;color:inherit;background:none;border:none}
   height:42px;padding:0 15px;border-radius:14px;cursor:pointer;
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   font-size:13px;font-weight:500;text-align:left;width:100%;
-  background:rgba(255,255,255,.10);
+  background:linear-gradient(145deg,rgba(225,244,255,.24),rgba(10,22,42,.62));
+  border:1px solid rgba(225,244,255,.24);
+  box-shadow:0 12px 30px rgba(2,8,24,.20),inset 0 1px 1px rgba(255,255,255,.32);
+  -webkit-backdrop-filter:blur(12px) saturate(92%);
+  backdrop-filter:blur(12px) saturate(92%);
 }
-.eitem:hover{background:rgba(255,255,255,.20)}
-.eitem.on{background:rgba(255,255,255,.34)}
+.eitem:hover{background:linear-gradient(145deg,rgba(196,229,255,.30),rgba(12,27,50,.70));border-color:rgba(225,245,255,.36)}
+.eitem.on{background:linear-gradient(145deg,rgba(171,218,255,.34),rgba(14,32,58,.72));border-color:rgba(225,245,255,.48)}
 .eitem .tick{opacity:0;font-size:12px;font-weight:700}
 .eitem.on .tick{opacity:.95}
 
-/* 搜索联想 / 历史：与引擎下拉同一套"独立玻璃片"语言，铺满搜索框宽度 */
+/* 搜索联想 / 历史：清空深色卡片，只保留一列轻量文字选项 */
 .smenu{
   position:absolute;left:0;right:0;top:calc(100% + 10px);z-index:30;
   display:flex;flex-direction:column;gap:7px;padding:0;
@@ -213,12 +218,13 @@ button{font:inherit;color:inherit;background:none;border:none}
 .sitem{
   min-height:42px;padding:0 16px;border-radius:14px;cursor:pointer;
   display:flex;align-items:center;gap:11px;width:100%;text-align:left;
-  font-size:13.5px;background:rgba(255,255,255,.10);
+  font-size:13.5px;color:rgba(255,255,255,.88);
+  background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.22);
 }
 .sitem svg{flex:0 0 auto;opacity:.75}
 .sitem .stx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sitem:hover{background:rgba(255,255,255,.22)}
-.sitem.on{background:rgba(255,255,255,.30)}
+.sitem:hover,.sitem.on{background:rgba(255,255,255,.075);color:#fff;text-shadow:0 0 12px rgba(255,255,255,.38)}
+.sitem:focus-visible{outline:1px solid rgba(255,255,255,.74);outline-offset:2px}
 .sclr{
   height:36px;border-radius:12px;cursor:pointer;font-size:12px;
   color:rgba(255,255,255,.66);background:rgba(255,255,255,.05);
@@ -226,19 +232,22 @@ button{font:inherit;color:inherit;background:none;border:none}
 }
 .sclr:hover{color:#fff;background:rgba(255,255,255,.12)}
 
+/* 联想框打开时，只隐藏真正被它覆盖的页面元素；收回后由脚本恢复。 */
+.suggest-occluded{visibility:hidden !important;opacity:0 !important;pointer-events:none !important}
+
 /* ================= 可拖动的玻璃模块 ================= */
-.draggable{cursor:grab;touch-action:none}
+.draggable{cursor:grab;touch-action:none;user-select:none}
 .draggable.dragging{cursor:grabbing;user-select:none}
-.draggable input,.draggable textarea{cursor:text}
+.draggable input,.draggable textarea{cursor:text;user-select:text}
 .draggable button,.draggable a,.draggable .tile{cursor:pointer}
-/* 悬停时右上角浮出抓取提示点阵（只给可拖动模块，瓦片太多不加） */
+/* 拖动时右上角浮出抓取提示点阵（只给可拖动模块，瓦片太多不加） */
 #searchWrap::after,#calWrap::after{
   content:"";position:absolute;right:2px;top:-11px;width:22px;height:10px;
   background-image:radial-gradient(rgba(255,255,255,.8) 1.1px,transparent 1.3px);
   background-size:7px 5px;
   opacity:0;transition:opacity .2s;pointer-events:none;
 }
-#searchWrap:hover::after,#calWrap:hover::after{opacity:.7}
+#searchWrap.dragging::after,#calWrap.dragging::after{opacity:.7}
 
 /* ---------- 快捷方式：小方块，直接复用 .glass ----------
    折射层 / 色调层 / 边缘光 / 投影一次到位，与下面两个面板完全是同一套渲染栈 */
@@ -271,6 +280,9 @@ button{font:inherit;color:inherit;background:none;border:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   text-shadow:0 1px 8px rgba(0,0,0,.34);
 }
+.tile.selected{outline:2px solid rgba(150,215,255,.9);background:rgba(115,190,255,.18)}
+.tile .tilemeta{max-width:100%;font-size:9px;color:rgba(255,255,255,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .tilecheck{position:absolute;left:8px;top:7px;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:#07121d;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.8);z-index:4}
 .tile.add .ic{font-size:22px;font-weight:400;opacity:.85}
 .tile .menu{
   position:absolute;top:7px;right:8px;width:22px;height:22px;border-radius:50%;
@@ -279,6 +291,12 @@ button{font:inherit;color:inherit;background:none;border:none}
   background:rgba(255,255,255,.24);z-index:4;
 }
 .tile:hover .menu{opacity:1}
+.tiletools{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:6px;margin-top:10px;color:rgba(255,255,255,.58);font-size:10px}
+.tiletools button,.tiletools select{height:27px;padding:0 9px;border-radius:999px;color:rgba(255,255,255,.76);font:inherit;font-size:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);outline:none}
+.tiletools button{cursor:pointer}
+.tiletools button:hover,.tiletools button:focus-visible,.tiletools select:focus-visible{color:#fff;background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.42)}
+.tiletools select{color-scheme:dark;max-width:150px}
+.tiletools #tileBatchCount{min-width:74px;text-align:left}
 
 /* ---------- 小组件行：横排换行，成员各自可拖动 ---------- */
 .wgrow{
@@ -306,12 +324,17 @@ button{font:inherit;color:inherit;background:none;border:none}
 .calwrap.out,.todo.out,.note.out,.cd.out{opacity:0;translate:16px 0}
 .wtitle{font-size:12px;font-weight:600;letter-spacing:.5px;color:rgba(255,255,255,.85);margin-bottom:8px}
 /* 待办 */
-.todoadd{display:flex;gap:6px;margin-bottom:8px}
+.todoadd{display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:5px;margin-bottom:6px}
 .todoadd input{
   flex:1;min-width:0;height:30px;border-radius:9px;padding:0 10px;
   font:inherit;font-size:12px;color:#fff;outline:none;
   background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);
 }
+.todoadd input[type=date],.todoadd select{height:30px;min-width:0;border-radius:9px;padding:0 5px;color:#fff;color-scheme:dark;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);font:inherit;font-size:10px}
+.todoadd input[type=date]{grid-column:1}
+.todoadd select{grid-column:1}
+.todoRemind{grid-column:1;display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.62);font-size:10px}
+.todoRemind input{width:auto;height:auto}
 .todoadd input::placeholder{color:rgba(255,255,255,.45)}
 .todoadd input:focus{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.4)}
 .todoadd button{
@@ -320,8 +343,11 @@ button{font:inherit;color:inherit;background:none;border:none}
   background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.24);
 }
 .todoadd button:hover{background:rgba(255,255,255,.24)}
+.todotools{display:flex;gap:4px;margin:0 0 6px;overflow:auto}
+.todotools button{border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:2px 7px;color:rgba(255,255,255,.62);font:inherit;font-size:10px;cursor:pointer;background:rgba(255,255,255,.06);white-space:nowrap}
+.todotools button.on,.todotools button:hover{color:#fff;background:rgba(255,255,255,.20)}
 .todolist{max-height:172px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
-.titem{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:4px 6px;border-radius:8px}
+.titem{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 6px;border-radius:8px}
 .titem:hover{background:rgba(255,255,255,.08)}
 .tchk{
   width:15px;height:15px;border-radius:50%;flex:0 0 auto;cursor:pointer;
@@ -331,6 +357,8 @@ button{font:inherit;color:inherit;background:none;border:none}
 .titem.done .tchk{background:rgba(255,255,255,.35);border-color:rgba(255,255,255,.6)}
 .titem.done .tchk::after{content:"✓";font-size:9px;line-height:1;color:#fff}
 .ttxt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.todo-col{flex:1;min-width:0;overflow:hidden}.todo-meta{display:block;color:rgba(255,255,255,.48);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.titem.high .tchk{border-color:#ffd36b}.titem.urgent .tchk{border-color:#ff8d8d;background:rgba(255,100,100,.16)}
+.todoact{opacity:0;color:rgba(255,255,255,.62);font-size:11px;padding:0 2px;cursor:pointer}.titem:hover .todoact{opacity:1}
 .titem.done .ttxt{opacity:.45;text-decoration:line-through}
 .tdel{opacity:0;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1;padding:0 2px}
 .titem:hover .tdel{opacity:1}
@@ -369,7 +397,9 @@ button{font:inherit;color:inherit;background:none;border:none}
   background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);
 }
 .cdform button:hover{background:rgba(255,255,255,.28)}
+.cditem{padding:5px 0;border-top:1px solid rgba(255,255,255,.12)}
 .calhead{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.caltools{display:flex;align-items:center;gap:4px}.calview,.caladd{height:22px;border-radius:7px;padding:0 7px;font:inherit;font-size:10px;color:rgba(255,255,255,.62);background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.17);cursor:pointer}.calview.on,.calview:hover,.caladd:hover{color:#fff;background:rgba(255,255,255,.20)}.caladd{margin-left:auto}
 /* 悬停浮现的移除按钮 */
 .calx{
   position:absolute;top:6px;right:8px;z-index:5;
@@ -401,10 +431,14 @@ button{font:inherit;color:inherit;background:none;border:none}
 }
 .calcell{
   height:23px;border-radius:7px;
+  border:1px solid transparent;background:transparent;cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   font-size:10.5px;font-weight:500;font-variant-numeric:tabular-nums;
   color:rgba(255,255,255,.88);
 }
+.calcell:hover,.calcell.selected{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.calcell .caldots{display:block;font-style:normal;font-size:8px;line-height:1;color:#b9dcff;position:absolute;margin-top:15px}.calcell{position:relative}
+.calweek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;min-height:52px}.calweek-col{min-width:0}.calweek-head{width:100%;border:0;background:rgba(255,255,255,.08);border-radius:6px;color:rgba(255,255,255,.75);font:inherit;font-size:9px;padding:3px 0;cursor:pointer}.calweek-event{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:3px;padding:3px;border-radius:4px;color:#fff;background:rgba(124,176,255,.25);font-size:8px}.calagenda{border-top:1px solid rgba(255,255,255,.13);margin-top:6px;padding-top:5px}.calagenda-head{color:rgba(255,255,255,.62);font-size:9px}.calagenda-empty{color:rgba(255,255,255,.38);font-size:9px}.calevent{display:flex;align-items:center;gap:4px;margin-top:3px;color:rgba(255,255,255,.82);font-size:10px}.calevent span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.calevent button{border:0;background:none;color:rgba(255,255,255,.5);cursor:pointer}
 .calcell.wknd{color:rgba(255,255,255,.55)}
 .calcell.dim{opacity:.25}
 .calcell.today{
@@ -453,8 +487,8 @@ button{font:inherit;color:inherit;background:none;border:none}
 }
 
 /* ---------- 天气 chip / 详情大框 ---------- */
-#wxChip{cursor:pointer;transition:transform .3s cubic-bezier(.2,.9,.25,1.1)}
-#wxChip:hover{transform:translateY(-2px)}
+#wxChip{cursor:pointer;transition:box-shadow .3s cubic-bezier(.2,.9,.25,1.1)}
+#wxChip:hover{box-shadow:0 14px 32px rgba(8,14,34,.34)}
 .chip .chipic{display:flex;align-items:center}
 .chip .chipic svg{width:16px;height:16px;display:block}
 .wpop{
@@ -518,6 +552,11 @@ button{font:inherit;color:inherit;background:none;border:none}
 .wdt{text-align:right;font-variant-numeric:tabular-nums}
 .wdt i{font-style:normal;color:rgba(255,255,255,.55)}
 .wpempty{font-size:12.5px;color:rgba(255,255,255,.55);padding:10px 0}
+.wxextra{margin-top:12px}.wxextra-line{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;color:rgba(255,255,255,.7);font-size:11px}.wxextra-line strong{font-size:18px;color:#fff}.wxalert{margin-top:6px;color:#ffd68a;font-size:11px}.wxcities{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.wxcities button{padding:4px 8px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);font:inherit;font-size:10px;cursor:pointer}.wxcities button.on,.wxcities button:hover{color:#fff;background:rgba(255,255,255,.22)}
+
+/* ---------- 浏览器数据 / 生产力面板 ---------- */
+.feature-panel{position:fixed;inset:0;z-index:45;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(5,9,20,.58)}.feature-panel.open{display:flex}.feature-box{width:min(760px,94vw);max-height:88vh;overflow:auto;border-radius:26px;padding:22px;color:#fff;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.30);box-shadow:0 26px 80px rgba(0,0,0,.48)}.feature-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}.feature-head h2{margin:0;flex:1;font-size:17px}.feature-head.mini{margin-bottom:8px;font-size:12px;color:rgba(255,255,255,.76)}.feature-close{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;cursor:pointer;font-size:18px;line-height:1}.feature-tabs{display:flex;gap:6px;overflow:auto;margin-bottom:10px}.feature-tabs button{padding:7px 12px;white-space:nowrap;border:1px solid rgba(255,255,255,.17);border-radius:999px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;font:inherit;font-size:12px}.feature-tabs button.on,.feature-tabs button:hover{color:#fff;background:rgba(255,255,255,.22)}.feature-toolbar{display:flex;gap:8px;margin-bottom:10px}.feature-toolbar input,.block-add input{flex:1;min-width:0;height:34px;border-radius:10px;padding:0 11px;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);outline:none;font:inherit;font-size:12px}.browser-list{max-height:58vh;overflow:auto;display:flex;flex-direction:column;gap:5px}.browser-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:9px 11px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.055);color:#fff;text-align:left;cursor:pointer;font:inherit}.browser-item:hover{background:rgba(255,255,255,.16)}.browser-item strong{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.browser-item span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(255,255,255,.48);font-size:10px}.browser-group{margin:10px 0 2px;color:rgba(255,255,255,.72);font-size:11px}.feature-empty{padding:20px;color:rgba(255,255,255,.5);text-align:center;font-size:12px}
+.pomo-card,.goal-card,.quote-card,.clock-card,.block-card{padding:14px;border-radius:16px;margin-top:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14)}.minor{display:block;color:rgba(255,255,255,.55);font-size:11px}.pomo-card{display:grid;grid-template-columns:1fr auto;gap:5px 16px;align-items:center}.pomo-card strong{font-size:13px}.pomo-time{font-size:42px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:1px}.pomo-actions{display:flex;gap:6px;grid-column:1 / -1}.pomo-actions .btnp{height:32px;padding:0 14px;font-size:12px}.goalbar{height:8px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden}.goalbar i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#83b7ff,#b6e5c6);transition:width .25s}.goal-edit{display:flex;gap:6px;margin-top:9px}.goal-edit input{width:62px;border-radius:9px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;padding:0 8px}.quote-card #quoteText{margin-top:5px;color:rgba(255,255,255,.88);font-size:13px}.world-clock,.blocked-site{display:flex;align-items:center;gap:8px;padding:5px 0;color:rgba(255,255,255,.75);font-size:12px}.world-clock span,.blocked-site{flex:1}.world-clock strong{font-variant-numeric:tabular-nums;color:#fff}.world-clock button,.blocked-site button{border:0;background:none;color:rgba(255,255,255,.5);cursor:pointer}.block-add{display:flex;gap:6px;margin-bottom:4px}
 
 /* ---------- 液态水滴 ---------- */
 .drops{position:fixed;inset:0;z-index:5;pointer-events:none}
@@ -557,6 +596,9 @@ body.drops-off .drops{display:none}
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);
   color:#fff;font:inherit;font-size:12.5px;outline:none;
 }
+.srow select,.setting-textarea{flex:1;min-width:0;border-radius:10px;padding:7px 10px;color:#fff;color-scheme:dark;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);font:inherit;font-size:12px;outline:none}.setting-textarea{min-height:52px;resize:vertical}.srow select:focus,.setting-textarea:focus{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.42)}
+.engine-list,.weather-cities,.calendar-sources{display:flex;flex-direction:column;gap:5px}.engine-row,.weather-city-row,.calendar-source{display:flex;align-items:center;gap:6px;min-height:27px;color:rgba(255,255,255,.72);font-size:11px}.engine-row span,.calendar-source span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.engine-row button,.weather-city-row button,.calendar-source button{padding:3px 7px;border:1px solid rgba(255,255,255,.16);border-radius:999px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.7);cursor:pointer;font:inherit}.weather-city-row button:first-child{flex:1;text-align:left}.engine-row button:hover,.weather-city-row button:hover,.weather-city-row button.on,.calendar-source button:hover{color:#fff;background:rgba(255,255,255,.2)}
+.hint code{padding:1px 4px;border-radius:4px;background:rgba(255,255,255,.1);font-size:11px}
 .srow input[type=text]::placeholder{color:rgba(255,255,255,.5)}
 .srow input[type=text]:focus{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.42)}
 .walls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
@@ -607,11 +649,13 @@ body.drops-off .drops{display:none}
 .dlgbox h3{margin:0;font-size:15px;font-weight:600}
 .dlgbox .fld{display:flex;flex-direction:column;gap:6px}
 .dlgbox .fld span{font-size:12px;color:rgba(255,255,255,.7)}
+.dlghelp{margin-top:-4px;color:var(--ink-faint);font-size:11px;line-height:1.6}
 .dlgbox input{
   height:38px;border-radius:11px;padding:0 12px;font:inherit;font-size:13px;color:#fff;outline:none;
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);
 }
 .dlgbox input:focus{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.42)}
+.todo-edit{width:100%;height:27px;min-width:0;padding:0 7px;border-radius:7px;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(174,220,255,.45);font:inherit;font-size:12px;outline:none}
 .dlgfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
 
 /* ---------- Toast ---------- */
@@ -655,6 +699,20 @@ body.drops-off .drops{display:none}
 .sbhead{display:flex;align-items:center;gap:10px;padding:15px 16px 10px;flex:0 0 auto}
 .sbtitle{flex:1;font-size:14px;font-weight:600;letter-spacing:.4px}
 .sbmeta{font-size:11.5px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums}
+.sbtools{position:relative;z-index:1;padding:0 16px 8px;display:flex;flex-direction:column;gap:7px}
+.sbsearch{width:100%;height:30px;border-radius:10px;padding:0 10px;outline:none;color:#fff;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);font:inherit;font-size:12px}
+.sbsearch::placeholder{color:rgba(255,255,255,.48)}
+.sbsearch:focus{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.42)}
+.sbfilters{display:flex;gap:5px}
+.sbfilters button{height:24px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.72);
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font:inherit;font-size:11px}
+.sbfilters button.on,.sbfilters button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.42);color:#fff}
+.sborganize{
+  height:30px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);font:inherit;font-size:11px;
+}
+.sborganize:hover{background:rgba(255,255,255,.22);color:#fff}
 .sbadd{
   width:34px;height:34px;border-radius:50%;cursor:pointer;padding:0;
   display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;
@@ -695,6 +753,9 @@ body.drops-off .drops{display:none}
   text-shadow:0 1px 8px rgba(0,0,0,.34);
 }
 .sbcard .sub{font-size:11px;color:rgba(255,255,255,.62);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.sbtags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.sbtag{padding:1px 6px;border-radius:999px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.72);font-size:10px;line-height:1.45}
 .sbcard img.thumb{
   display:block;width:100%;height:132px;object-fit:cover;
   border-radius:12px;margin-bottom:9px;background:rgba(255,255,255,.12);
@@ -723,3 +784,534 @@ body.drops-off .drops{display:none}
 @media (prefers-reduced-motion:reduce){
   *{transition:none !important;animation:none !important}
 }
+
+/* ---------- 视觉收束最终覆盖（在历史布局规则之后） ---------- */
+:root{
+  --lg-edge:rgba(225,244,255,.26);--lg-edge-strong:rgba(225,245,255,.44);
+  --lg-surface:rgba(255,255,255,.035);--lg-surface-soft:rgba(255,255,255,.055);
+  --lg-surface-strong:rgba(255,255,255,.10);--lg-surface-accent:rgba(171,218,255,.14);
+  --lg-shadow:rgba(2,8,24,.28);--lg-shadow-deep:rgba(2,7,20,.46);
+  --lg-ink:rgba(249,253,255,.96);--lg-muted:rgba(234,244,255,.70);--lg-faint:rgba(226,240,255,.48);
+  --lg-accent:#b9e0ff;--blue-glow:rgba(175,221,255,.78);--accent:#a8d9ff;
+}
+.feature-panel,.sheet,.dialog{background:radial-gradient(72% 48% at 50% 0,rgba(143,198,255,.12),rgba(4,9,22,.76) 78%),rgba(4,9,22,.48);-webkit-backdrop-filter:blur(9px) saturate(86%);backdrop-filter:blur(9px) saturate(86%)}
+.wpop,.feature-box,.sheetbox,.dlgbox,.toast{border-color:var(--lg-edge);background:linear-gradient(145deg,rgba(238,248,255,.095),rgba(255,255,255,.028) 54%,rgba(125,181,235,.055));box-shadow:0 28px 90px var(--lg-shadow-deep),inset 0 1px 1px rgba(255,255,255,.38)}
+.wpop > *,.feature-box > *,.sheetbox > *,.dlgbox > *{position:relative;z-index:1}
+.feature-tabs{background:rgba(5,13,29,.10);border-color:rgba(225,244,255,.14)}
+.feature-tabs button{border-color:var(--lg-edge);background:rgba(235,247,255,.045)}
+.feature-tabs button.on,.feature-tabs button:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)}
+.tile{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));box-shadow:0 10px 26px var(--lg-shadow)}
+.tile:hover{background:linear-gradient(145deg,rgba(238,248,255,.10),rgba(255,255,255,.028) 55%,rgba(145,201,255,.055));border-color:var(--lg-edge-strong);box-shadow:0 14px 30px var(--lg-shadow)}
+.tile .ic,.sbcard .ic{background:rgba(232,247,255,.12);border-color:rgba(225,244,255,.24);box-shadow:inset 0 1px 1px rgba(255,255,255,.38)}
+.tiletools{background:rgba(7,15,31,.16);border-color:var(--lg-edge);box-shadow:0 8px 24px rgba(3,9,24,.12)}
+.tiletools button,.tiletools select{background:rgba(235,247,255,.055);border-color:var(--lg-edge)}
+.tiletools button:hover,.tiletools button:focus-visible,.tiletools select:focus-visible{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.tiletools .tiletool-primary{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.tile.selected{outline:0;border-color:var(--lg-edge-strong);background:var(--lg-surface-accent);box-shadow:0 0 0 2px rgba(171,218,255,.14),0 14px 30px var(--lg-shadow)}
+.calwrap,.todo,.note,.cd{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));box-shadow:0 12px 28px var(--lg-shadow)}
+.wgrow > .glass{border-color:rgba(225,244,255,.22)}
+.calview,.caladd,.calnav{background:rgba(235,247,255,.055);border-color:var(--lg-edge)}
+.calview.on,.calview:hover,.caladd:hover,.calnav:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.todotools button.on,.todotools button:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge)}
+.calcell.today{background:rgba(183,226,255,.18);border-color:rgba(225,245,255,.44);box-shadow:0 2px 10px rgba(160,214,255,.10),inset 0 1px 1px rgba(255,255,255,.34)}
+.calx:hover{background:rgba(255,170,174,.22);border-color:rgba(255,205,208,.42)}
+.pomo-card,.goal-card,.quote-card,.clock-card,.block-card{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 62%,rgba(145,201,255,.028));border-color:rgba(225,244,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.pomo-card{background:linear-gradient(135deg,rgba(171,218,255,.12),rgba(255,255,255,.026) 62%,rgba(212,193,230,.045))}
+.goalbar{background:rgba(225,244,255,.10)}.goalbar i{background:linear-gradient(90deg,#a9d9ff,#d0e8d9)}
+.srow input[type=text],.srow select,.setting-textarea,.feature-toolbar input,.block-add input,.dlgbox input,.dlgbox textarea,.sbsearch,.todo-main input,.todo-field input,.todo-field select,.note textarea,.cdform input{background:rgba(235,247,255,.052);border-color:var(--lg-edge)}
+.srow input[type=text]:focus,.srow select:focus,.setting-textarea:focus,.feature-toolbar input:focus,.block-add input:focus,.dlgbox input:focus,.dlgbox textarea:focus,.sbsearch:focus,.todo-main input:focus,.todo-field input:focus,.todo-field select:focus,.note textarea:focus,.cdform input:focus{background:rgba(220,241,255,.085);border-color:var(--lg-edge-strong)}
+.sbtn:hover,.sbtn.open,.sbfilters button.on,.sbfilters button:hover,.sborganize:hover,.sbadd:hover,.seg button.on,.ptab.on{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)}
+.sbtn,.eitem,.sbfilters button,.sborganize,.sbadd,.seg button,.ptab{border-color:var(--lg-edge)}
+.eitem{background:linear-gradient(145deg,rgba(225,244,255,.24),rgba(10,22,42,.62));box-shadow:0 12px 30px rgba(2,8,24,.20),inset 0 1px 1px rgba(255,255,255,.32);-webkit-backdrop-filter:blur(12px) saturate(92%);backdrop-filter:blur(12px) saturate(92%)}
+.eitem:hover{background:linear-gradient(145deg,rgba(196,229,255,.30),rgba(12,27,50,.70));border-color:var(--lg-edge-strong)}
+.eitem.on{background:linear-gradient(145deg,rgba(171,218,255,.34),rgba(14,32,58,.72));border-color:rgba(225,245,255,.48);color:var(--lg-ink)}
+.btnp:not(.ghost){background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}.btnp:not(.ghost):hover{background:rgba(183,226,255,.20);border-color:rgba(225,245,255,.56)}
+.sbar{background:linear-gradient(160deg,rgba(238,248,255,.085),rgba(255,255,255,.025) 48%,rgba(125,181,235,.05));border-color:var(--lg-edge);box-shadow:14px 0 44px var(--lg-shadow)}
+.sbar.dropping{border-color:var(--lg-edge-strong);box-shadow:14px 0 58px rgba(2,7,20,.56)}
+.sbsearch{background:rgba(235,247,255,.05);border-color:var(--lg-edge)}.sbfilters button,.sborganize,.sbadd{background:rgba(235,247,255,.065)}.sbtag{background:rgba(235,247,255,.08);border-color:rgba(225,244,255,.16)}
+.sbhint,.sbempty{color:var(--lg-faint)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(185,224,255,.76);outline-offset:2px}
+
+/* 搜索引擎菜单：单层玻璃片保留折射，但提高遮蔽度避免快捷图标穿透文字。 */
+.emenu .eitem{background:linear-gradient(145deg,rgba(225,244,255,.24),rgba(10,22,42,.62));border-color:var(--lg-edge);box-shadow:0 12px 30px rgba(2,8,24,.20),inset 0 1px 1px rgba(255,255,255,.32);-webkit-backdrop-filter:blur(12px) saturate(92%);backdrop-filter:blur(12px) saturate(92%)}
+.emenu .eitem:hover{background:linear-gradient(145deg,rgba(196,229,255,.30),rgba(12,27,50,.70));border-color:var(--lg-edge-strong)}
+.emenu .eitem.on{background:linear-gradient(145deg,rgba(171,218,255,.34),rgba(14,32,58,.72));border-color:rgba(225,245,255,.48);color:var(--lg-ink)}
+
+/* ---------- 最终材质覆盖：位于旧版布局规则之后 ---------- */
+:root{
+  --lg-edge:rgba(225,244,255,.26);
+  --lg-edge-strong:rgba(225,245,255,.44);
+  --lg-surface:rgba(255,255,255,.035);
+  --lg-surface-soft:rgba(255,255,255,.055);
+  --lg-surface-strong:rgba(255,255,255,.10);
+  --lg-surface-accent:rgba(171,218,255,.14);
+  --lg-shadow:rgba(2,8,24,.28);
+  --lg-shadow-deep:rgba(2,7,20,.46);
+  --lg-ink:rgba(249,253,255,.96);
+  --lg-muted:rgba(234,244,255,.70);
+  --lg-faint:rgba(226,240,255,.48);
+  --lg-accent:#b9e0ff;
+  --blue-glow:rgba(175,221,255,.78);
+  --accent:#a8d9ff;
+}
+.feature-panel,.sheet,.dialog{
+  background:radial-gradient(72% 48% at 50% 0,rgba(143,198,255,.12),rgba(4,9,22,.76) 78%),rgba(4,9,22,.48);
+  -webkit-backdrop-filter:blur(9px) saturate(86%);
+  backdrop-filter:blur(9px) saturate(86%);
+}
+.wpop,.feature-box,.sheetbox,.dlgbox,.toast{
+  border-color:var(--lg-edge);
+  background:linear-gradient(145deg,rgba(238,248,255,.095),rgba(255,255,255,.028) 54%,rgba(125,181,235,.055));
+  box-shadow:0 28px 90px var(--lg-shadow-deep),inset 0 1px 1px rgba(255,255,255,.38);
+}
+.wpop::before,.feature-box::before,.sheetbox::before,.dlgbox::before,.toast::before{
+  content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.012) 48%,rgba(176,220,255,.055));
+}
+.wpop::after,.feature-box::after,.sheetbox::after,.dlgbox::after,.toast::after{
+  content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.48),inset 0 -1px 1px rgba(8,18,40,.18),inset 0 0 24px rgba(220,240,255,.04);
+}
+.wpop > *,.feature-box > *,.sheetbox > *,.dlgbox > *{position:relative;z-index:1}
+.feature-close,.wpclose{background:rgba(235,247,255,.07);color:var(--lg-muted);border-color:var(--lg-edge)}
+.feature-close:hover,.wpclose:hover{background:var(--lg-surface-accent);color:var(--lg-ink);border-color:var(--lg-edge-strong)}
+.feature-tabs{background:rgba(5,13,29,.10);border-color:rgba(225,244,255,.14)}
+.feature-tabs button{border-color:var(--lg-edge);background:rgba(235,247,255,.045)}
+.feature-tabs button.on,.feature-tabs button:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)}
+.tile{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));box-shadow:0 10px 26px var(--lg-shadow)}
+.tile:hover{background:linear-gradient(145deg,rgba(238,248,255,.10),rgba(255,255,255,.028) 55%,rgba(145,201,255,.055));border-color:var(--lg-edge-strong);box-shadow:0 14px 30px var(--lg-shadow)}
+.tile .ic,.sbcard .ic{background:rgba(232,247,255,.12);border-color:rgba(225,244,255,.24);box-shadow:inset 0 1px 1px rgba(255,255,255,.38)}
+.tiletools{background:rgba(7,15,31,.16);border-color:var(--lg-edge);box-shadow:0 8px 24px rgba(3,9,24,.12)}
+.tiletools button,.tiletools select{background:rgba(235,247,255,.055);border-color:var(--lg-edge)}
+.tiletools button:hover,.tiletools button:focus-visible,.tiletools select:focus-visible{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.tiletools .tiletool-primary{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.tile.selected{outline:0;border-color:var(--lg-edge-strong);background:var(--lg-surface-accent);box-shadow:0 0 0 2px rgba(171,218,255,.14),0 14px 30px var(--lg-shadow)}
+.calwrap,.todo,.note,.cd{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));box-shadow:0 12px 28px var(--lg-shadow)}
+.wgrow > .glass{border-color:rgba(225,244,255,.22)}
+.calview,.caladd,.calnav{background:rgba(235,247,255,.055);border-color:var(--lg-edge)}
+.calview.on,.calview:hover,.caladd:hover,.calnav:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.todotools button.on,.todotools button:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge)}
+.calcell.today{background:rgba(183,226,255,.18);border-color:rgba(225,245,255,.44);box-shadow:0 2px 10px rgba(160,214,255,.10),inset 0 1px 1px rgba(255,255,255,.34)}
+.calx:hover{background:rgba(255,170,174,.22);border-color:rgba(255,205,208,.42)}
+.pomo-card,.goal-card,.quote-card,.clock-card,.block-card{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 62%,rgba(145,201,255,.028));border-color:rgba(225,244,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.pomo-card{background:linear-gradient(135deg,rgba(171,218,255,.12),rgba(255,255,255,.026) 62%,rgba(212,193,230,.045))}
+.goalbar{background:rgba(225,244,255,.10)}
+.goalbar i{background:linear-gradient(90deg,#a9d9ff,#d0e8d9)}
+.srow input[type=text],.srow select,.setting-textarea,.feature-toolbar input,.block-add input,.dlgbox input,.dlgbox textarea,.sbsearch,.todo-main input,.todo-field input,.todo-field select,.note textarea,.cdform input{background:rgba(235,247,255,.052);border-color:var(--lg-edge)}
+.srow input[type=text]:focus,.srow select:focus,.setting-textarea:focus,.feature-toolbar input:focus,.block-add input:focus,.dlgbox input:focus,.dlgbox textarea:focus,.sbsearch:focus,.todo-main input:focus,.todo-field input:focus,.todo-field select:focus,.note textarea:focus,.cdform input:focus{background:rgba(220,241,255,.085);border-color:var(--lg-edge-strong)}
+.sbtn:hover,.sbtn.open,.eitem:hover,.eitem.on,.feature-tabs button.on,.feature-tabs button:hover,.sbfilters button.on,.sbfilters button:hover,.sborganize:hover,.sbadd:hover,.seg button.on,.ptab.on{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)}
+.sbtn,.eitem,.feature-tabs button,.sbfilters button,.sborganize,.sbadd,.seg button,.ptab{border-color:var(--lg-edge)}
+.btnp:not(.ghost),.tiletools .tiletool-primary{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.btnp:not(.ghost):hover{background:rgba(183,226,255,.20);border-color:rgba(225,245,255,.56)}
+.sbar{background:linear-gradient(160deg,rgba(238,248,255,.085),rgba(255,255,255,.025) 48%,rgba(125,181,235,.05));border-color:var(--lg-edge);box-shadow:14px 0 44px var(--lg-shadow)}
+.sbar.dropping{border-color:var(--lg-edge-strong);box-shadow:14px 0 58px rgba(2,7,20,.56)}
+.sbsearch{background:rgba(235,247,255,.05);border-color:var(--lg-edge)}
+.sbfilters button,.sborganize,.sbadd{background:rgba(235,247,255,.065)}
+.sbtag{background:rgba(235,247,255,.08);border-color:rgba(225,244,255,.16)}
+.sbhint,.sbempty{color:var(--lg-faint)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(185,224,255,.76);outline-offset:2px}
+
+/* ================= 设计语言校准：静谧的液态玻璃工作台 =================
+   这一层是全项目的最终材质契约：背景负责色彩，玻璃负责透光和折射，
+   控件只提供很轻的状态层。降低白边、彩度和内部反差后，液态玻璃的
+   轮廓会来自真实壁纸，而不是来自一圈发光描边。 */
+:root{
+  --lg-edge:rgba(225,244,255,.26);
+  --lg-edge-strong:rgba(225,245,255,.44);
+  --lg-sheen:rgba(255,255,255,.11);
+  --lg-surface:rgba(255,255,255,.035);
+  --lg-surface-soft:rgba(255,255,255,.055);
+  --lg-surface-strong:rgba(255,255,255,.10);
+  --lg-surface-accent:rgba(171,218,255,.14);
+  --lg-shadow:rgba(2,8,24,.28);
+  --lg-shadow-deep:rgba(2,7,20,.46);
+  --lg-ink:rgba(249,253,255,.96);
+  --lg-muted:rgba(234,244,255,.70);
+  --lg-faint:rgba(226,240,255,.48);
+  --lg-accent:#b9e0ff;
+  --lg-danger:#ffb8be;
+  --accent:#a8d9ff;
+  --blue-glow:rgba(175,221,255,.78);
+}
+
+body{color:var(--lg-ink)}
+.tex{
+  opacity:calc(.11 * var(--tex));
+  background-image:
+    radial-gradient(rgba(255,255,255,.18) .55px,transparent .95px),
+    repeating-linear-gradient(118deg,rgba(255,255,255,.045) 0 1px,transparent 1px 13px);
+  background-size:9px 9px,auto;
+}
+
+/* 真正的材质由低对比边缘和窄幅高光构成，避免“霓虹卡片”观感。 */
+.glass{
+  border-color:var(--lg-edge);
+  background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));
+  box-shadow:0 14px 34px var(--lg-shadow),0 1px 0 rgba(255,255,255,.08);
+}
+.glass::before{
+  background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.018) 44%,rgba(176,220,255,.07));
+  opacity:.78;
+}
+.glass::after{
+  box-shadow:
+    inset 0 1px 1px rgba(255,255,255,.55),
+    inset 0 -1px 1px rgba(8,18,40,.22),
+    inset 1px 0 1px rgba(235,248,255,.18),
+    inset -1px 0 1px rgba(235,248,255,.12),
+    inset 0 0 22px rgba(220,240,255,.045);
+}
+.clockGlass{-webkit-backdrop-filter:blur(6px) saturate(145%) brightness(1.08);backdrop-filter:blur(6px) saturate(145%) brightness(1.08)}
+.clockTint{background:rgba(255,255,255,.06)}
+.gtBig{stroke:rgba(255,255,255,.44);filter:drop-shadow(0 4px 16px rgba(8,16,38,.24))}
+.gtSmall{stroke:rgba(255,255,255,.34);filter:drop-shadow(0 1px 6px rgba(8,16,38,.28))}
+
+/* 统一交互层级：默认是轻触感，选中才获得淡蓝色材质。 */
+.sbtn:hover,.sbtn.open,.eitem:hover,.eitem.on,
+.tiletools button:hover,.tiletools button:focus-visible,.tiletools select:focus-visible,
+.calnav:hover,.calview:hover,.calview.on,.caladd:hover,
+.todotools button.on,.todotools button:hover,
+.feature-tabs button.on,.feature-tabs button:hover,
+.sbfilters button.on,.sbfilters button:hover,
+.wxcities button.on,.wxcities button:hover{
+  background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink);
+}
+.sbtn,.eitem,.tiletools button,.tiletools select,.calnav,.calview,.caladd,
+.feature-tabs button,.feature-close,.wpclose,.sbfilters button,.sborganize,.sbadd,
+.wxcities button,.ghostbtn,.seg button,.btnp,.ptab{
+  border-color:var(--lg-edge);
+}
+.tiletools .tiletool-primary,.btnp:not(.ghost),.seg button.on,.ptab.on{
+  background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink);
+}
+.tiletools .tiletool-primary:hover,.btnp:not(.ghost):hover,.seg button.on:hover,.ptab.on:hover{
+  background:rgba(183,226,255,.20);border-color:rgba(225,245,255,.56);
+}
+.tile.selected{outline:0;border-color:var(--lg-edge-strong);background:var(--lg-surface-accent);box-shadow:0 0 0 2px rgba(171,218,255,.14),0 14px 30px var(--lg-shadow)}
+.tile .ic,.sbcard .ic{background:rgba(232,247,255,.12);border-color:rgba(225,244,255,.24);box-shadow:inset 0 1px 1px rgba(255,255,255,.38)}
+.tile .tilecheck{background:rgba(226,245,255,.78);border-color:rgba(241,251,255,.78)}
+.tile:hover .ic{box-shadow:inset 0 1px 1px rgba(255,255,255,.46),0 4px 16px rgba(130,195,255,.14)}
+
+/* 输入控件仍然是玻璃系统中的“内层表面”，而非不透明的深色输入框。 */
+.todo-main input,.todo-field input,.todo-field select,.note textarea,.cdform input,
+.feature-toolbar input,.block-add input,.srow input[type=text],.srow select,.setting-textarea,
+.dlgbox input,.dlgbox textarea,.sbsearch{
+  background:rgba(235,247,255,.052);border-color:var(--lg-edge);
+}
+.todo-main input:focus,.todo-field input:focus,.todo-field select:focus,.note textarea:focus,
+.cdform input:focus,.feature-toolbar input:focus,.block-add input:focus,
+.srow input[type=text]:focus,.srow select:focus,.setting-textarea:focus,
+.dlgbox input:focus,.dlgbox textarea:focus,.sbsearch:focus{
+  background:rgba(220,241,255,.085);border-color:var(--lg-edge-strong);
+}
+.sitem{background:rgba(235,247,255,.028);border-color:var(--lg-edge)}
+.sitem:hover,.sitem.on{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);text-shadow:0 0 10px rgba(203,233,255,.20)}
+.tiletools{background:rgba(7,15,31,.16);border-color:var(--lg-edge);box-shadow:0 8px 24px rgba(3,9,24,.12)}
+.wgrow > .glass{border-color:rgba(225,244,255,.22)}
+.calcell.today{background:rgba(183,226,255,.18);border-color:rgba(225,245,255,.44);box-shadow:0 2px 10px rgba(160,214,255,.10),inset 0 1px 1px rgba(255,255,255,.34)}
+.calx:hover{background:rgba(255,170,174,.22);border-color:rgba(255,205,208,.42)}
+.titem.high .tchk{border-color:#e9c982}.titem.urgent .tchk{border-color:#f2a9af;background:rgba(255,160,165,.10)}
+.tiletool-danger:hover{color:#ffdfe2;background:rgba(255,145,150,.10);border-color:rgba(255,194,198,.36)}
+
+/* 弹层外的背景是环境光，不再让底层霓虹穿透到文字上。 */
+.feature-panel,.sheet,.dialog{
+  background:radial-gradient(72% 48% at 50% 0,rgba(143,198,255,.12),rgba(4,9,22,.76) 78%),rgba(4,9,22,.48);
+  -webkit-backdrop-filter:blur(9px) saturate(86%);
+  backdrop-filter:blur(9px) saturate(86%);
+}
+.wpop,.feature-box,.sheetbox,.dlgbox,.toast{
+  border-color:var(--lg-edge);
+  background:linear-gradient(145deg,rgba(238,248,255,.095),rgba(255,255,255,.028) 54%,rgba(125,181,235,.055));
+  box-shadow:0 28px 90px var(--lg-shadow-deep),inset 0 1px 1px rgba(255,255,255,.38);
+  isolation:isolate;
+}
+.wpop::before,.feature-box::before,.sheetbox::before,.dlgbox::before,.toast::before{
+  content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;
+  background:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.012) 48%,rgba(176,220,255,.055));
+}
+.wpop::after,.feature-box::after,.sheetbox::after,.dlgbox::after,.toast::after{
+  content:"";position:absolute;inset:0;z-index:0;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.48),inset 0 -1px 1px rgba(8,18,40,.18),inset 0 0 24px rgba(220,240,255,.04);
+}
+.wpop > *,.feature-box > *,.sheetbox > *,.dlgbox > *{position:relative;z-index:1}
+.feature-close,.wpclose{background:rgba(235,247,255,.07);color:var(--lg-muted)}
+.feature-close:hover,.wpclose:hover{background:var(--lg-surface-accent);color:var(--lg-ink)}
+.feature-tabs{background:rgba(5,13,29,.10);border-color:rgba(225,244,255,.14)}
+.feature-box{border-radius:28px}
+.pomo-card,.goal-card,.quote-card,.clock-card,.block-card{
+  background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 62%,rgba(145,201,255,.028));
+  border-color:rgba(225,244,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);
+}
+.pomo-card{background:linear-gradient(135deg,rgba(171,218,255,.12),rgba(255,255,255,.026) 62%,rgba(212,193,230,.045))}
+.goalbar{background:rgba(225,244,255,.10)}
+.goalbar i{background:linear-gradient(90deg,#a9d9ff,#d0e8d9)}
+.sheetbox,.dlgbox{background:linear-gradient(145deg,rgba(238,248,255,.085),rgba(255,255,255,.025) 55%,rgba(125,181,235,.045))}
+
+/* 收集板的外壳是安静的玻璃底，真正的折射留给卡片本身。 */
+.sbar{
+  background:linear-gradient(160deg,rgba(238,248,255,.085),rgba(255,255,255,.025) 48%,rgba(125,181,235,.05));
+  border-color:var(--lg-edge);box-shadow:14px 0 44px var(--lg-shadow);
+}
+.sbar.dropping{border-color:var(--lg-edge-strong);box-shadow:14px 0 58px rgba(2,7,20,.56)}
+.sbsearch{background:rgba(235,247,255,.05);border-color:var(--lg-edge)}
+.sbfilters button,.sborganize,.sbadd{background:rgba(235,247,255,.065)}
+.sbfilters button.on,.sbfilters button:hover,.sborganize:hover,.sbadd:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.sbtag{background:rgba(235,247,255,.08);border-color:rgba(225,244,255,.16)}
+.sbhint,.sbempty{color:var(--lg-faint)}
+
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(185,224,255,.76);outline-offset:2px}
+
+@media (max-width:760px){
+  .feature-panel,.sheet,.dialog{padding:14px}
+  .feature-box,.sheetbox{border-radius:24px}
+}
+
+/* ================= 视觉收束：安静的液态玻璃工作台 =================
+   新增功能沿用主页面的留白和折射，但不再让每个控件都变成一颗胶囊。
+   这里用固定的节奏、层级和两列工作台，避免卡片在宽屏上漂浮、在窄屏上挤压。 */
+:root{
+  --surface-quiet:rgba(7,15,31,.22);
+  --surface-soft:rgba(255,255,255,.065);
+  --surface-active:rgba(154,205,255,.15);
+  --line-quiet:rgba(255,255,255,.16);
+  --line-bright:rgba(210,235,255,.42);
+  --ink-strong:rgba(255,255,255,.94);
+  --ink-soft:rgba(235,244,255,.68);
+  --ink-faint:rgba(235,244,255,.44);
+  --blue-glow:rgba(151,204,255,.82);
+  --card-radius:20px;
+  --panel-radius:28px;
+  --soft-shadow:0 18px 46px rgba(4,10,25,.22);
+}
+
+.page{padding:18px clamp(18px,4.5vw,54px) 24px;gap:clamp(16px,2.6vh,28px)}
+.hero{width:min(100%,980px);margin:0 auto;gap:clamp(18px,2.8vh,30px);padding:clamp(8px,2vh,24px) 0}
+.topbar{gap:8px}
+.topbar .chip{height:38px}
+.topbar .iconbtn{width:38px;height:38px}
+
+/* 快捷方式：六列是主节奏，最后一行也能保持稳定的视觉重心。 */
+.tiles{width:min(820px,100%)}
+.tgrid{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;max-width:780px;margin:0 auto}
+.tile{height:104px;border-radius:var(--card-radius);padding:11px 9px;gap:7px;background:rgba(255,255,255,.035);box-shadow:0 8px 22px rgba(3,9,24,.12);transition:background .2s ease,box-shadow .2s ease,border-color .2s ease}
+.tile:hover{background:rgba(255,255,255,.085);border-color:rgba(220,240,255,.52);box-shadow:0 14px 30px rgba(4,12,28,.24)}
+.tile .ic{width:40px;height:40px;border-radius:13px;background:rgba(255,255,255,.16);border-color:rgba(220,240,255,.28);box-shadow:inset 0 1px 1px rgba(255,255,255,.48)}
+.tile .nm{font-size:12px;font-weight:600;color:var(--ink-strong)}
+.tile .tilemeta{max-width:calc(100% - 6px);font-size:9px;line-height:1.2;color:var(--ink-faint)}
+.tile .menu{top:8px;right:8px;width:20px;height:20px;background:rgba(5,13,28,.22);border:1px solid rgba(255,255,255,.12)}
+.tile:hover .menu,.tile:focus-within .menu{opacity:1}
+.tile.selected{outline:0;border-color:var(--blue-glow);box-shadow:0 0 0 2px rgba(151,204,255,.18),0 14px 30px rgba(4,12,28,.26);background:var(--surface-active)}
+.tile .tilecheck{left:8px;top:8px;width:19px;height:19px;color:#0d1b2c;background:#d9efff;border-color:#eff9ff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.tiletools{width:min(780px,100%);margin:15px auto 0;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line-quiet);border-radius:15px;background:var(--surface-quiet);box-shadow:0 8px 24px rgba(3,9,24,.1)}
+.tiletools-info{display:flex;align-items:baseline;gap:9px;min-width:0}
+.tiletools-kicker{font-size:10px;letter-spacing:.12em;color:var(--ink-faint)}
+.tiletools-info strong{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--ink-soft)}
+.tiletools-info #tileBatchCount{min-width:0;text-align:left;color:var(--ink-faint);font-size:10px}
+.tiletools-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:5px}
+.tiletools button,.tiletools select{height:28px;padding:0 10px;border-radius:9px;font-size:10.5px;color:var(--ink-soft);background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.14)}
+.tiletools button{cursor:pointer}
+.tiletools button:hover,.tiletools button:focus-visible,.tiletools select:focus-visible{color:#fff;background:rgba(255,255,255,.14);border-color:var(--line-bright)}
+.tiletools .tiletool-primary{color:#e9f6ff;background:rgba(147,204,255,.16);border-color:rgba(174,220,255,.32)}
+.tiletools .tiletool-danger:hover{color:#ffdede;background:rgba(255,113,113,.14);border-color:rgba(255,160,160,.4)}
+.tiletools select{max-width:148px;color-scheme:dark}
+
+/* 小组件：四张轻量卡片组成一条工作台，不再使用自由偏移和巨型面板。 */
+.wgrow{width:min(920px,100%);display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:10px;margin:0 auto}
+ .calwrap,.todo,.note,.cd{position:relative;left:0;top:0;width:214px;min-width:0;height:224px;min-height:224px;flex:0 1 214px;border-radius:16px;padding:12px;background:rgba(255,255,255,.04);box-shadow:0 12px 28px rgba(4,10,25,.16)}
+.calwrap,.todo,.note,.cd{display:flex;flex-direction:column}
+.wgrow > .glass{border-color:rgba(220,239,255,.24)}
+.wgrow > .glass::after{box-shadow:inset 0 1px 1px rgba(255,255,255,.46),inset 0 -1px 1.5px rgba(255,255,255,.22),inset 1px 0 1.5px rgba(255,255,255,.18),inset -1px 0 1.5px rgba(255,255,255,.18),inset 0 0 18px rgba(255,255,255,.05)}
+.calwrap{height:224px;gap:2px;padding:9px 11px 10px}
+ .wgrow > .draggable{cursor:grab;touch-action:none;user-select:none}
+.calwrap.out,.todo.out,.note.out,.cd.out{opacity:0;translate:14px 0}
+.calwrap:hover .calx,.todo:hover .calx,.note:hover .calx,.cd:hover .calx,.calwrap:focus-within .calx,.todo:focus-within .calx,.note:focus-within .calx,.cd:focus-within .calx{opacity:1}
+.wtitle{margin-bottom:8px;font-size:11px;letter-spacing:.08em;color:var(--ink-soft)}
+
+/* 待办输入按“先写任务，再补充属性”的人类顺序排布。 */
+.todoadd{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.todo-main{display:grid;grid-template-columns:minmax(0,1fr) 32px;gap:7px}
+.todo-main input{width:100%;height:32px;padding:0 9px;border-radius:9px;font-size:11px;background:rgba(255,255,255,.065);border:1px solid var(--line-quiet)}
+.todo-main button{width:32px;height:32px;border-radius:9px;font-size:14px;background:rgba(161,213,255,.14);border-color:rgba(189,228,255,.26)}
+.todo-options{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr) minmax(0,.95fr);gap:5px}
+.todo-field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.todo-field span{font-size:9px;color:var(--ink-faint);letter-spacing:.04em}
+.todo-field input,.todo-field select{width:100%;height:26px;min-width:0;padding:0 6px;border-radius:7px;color:var(--ink-soft);color-scheme:dark;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.13);font:inherit;font-size:9px}
+.todoRemind{grid-column:1 / -1 !important;justify-self:stretch;width:100%;display:flex;align-items:center;justify-content:flex-start;gap:6px;height:18px;color:var(--ink-faint);font-size:9px}
+.todoRemind input{accent-color:var(--accent)}
+.todotools{margin:0 0 4px;padding-bottom:4px;border-bottom:1px solid rgba(255,255,255,.1);overflow:auto}
+.todotools button{padding:2px 7px;color:var(--ink-faint);background:transparent;border-color:transparent;font-size:9px}
+.todotools button.on,.todotools button:hover{color:#fff;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.16)}
+.todolist{flex:1;min-height:34px;max-height:none;gap:2px;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(190,224,255,.34) transparent}
+.todolist::-webkit-scrollbar,.calagenda::-webkit-scrollbar{width:4px;height:4px}
+.todolist::-webkit-scrollbar-track,.calagenda::-webkit-scrollbar-track{background:transparent}
+.todolist::-webkit-scrollbar-thumb,.calagenda::-webkit-scrollbar-thumb{background:rgba(190,224,255,.34);border-radius:5px}
+.todolist::-webkit-scrollbar-button,.calagenda::-webkit-scrollbar-button{display:none;width:0;height:0}
+.titem{min-height:28px;padding:4px 5px;border-radius:8px;font-size:11px}
+.titem:hover{background:rgba(255,255,255,.075)}
+.todo-meta{font-size:8px;color:var(--ink-faint)}
+
+/* 日历和倒数日的数字保持克制，避免小组件变成信息墙。 */
+.calhead{padding-bottom:1px}
+.calm{font-size:12px;color:var(--ink-strong)}
+.caltools{padding:1px 0 3px}
+.calview,.caladd{height:23px;border-radius:7px;padding:0 7px;color:var(--ink-faint);background:rgba(255,255,255,.055);border-color:rgba(255,255,255,.13);font-size:9px}
+.calview.on,.calview:hover,.caladd:hover{color:#fff;background:rgba(151,204,255,.15);border-color:rgba(174,220,255,.3)}
+.calgrid{flex:0 0 auto;gap:1px}
+.calcell{height:20px;border-radius:6px;font-size:10px}
+.calcell .caldots{margin-top:15px}
+.calagenda{flex:1;min-height:34px;max-height:none;overflow-y:auto;overflow-x:hidden;margin-top:3px;padding-top:4px;scrollbar-width:thin;scrollbar-color:rgba(190,224,255,.34) transparent}
+.calagenda-head{font-size:10px;color:var(--ink-faint)}
+.calevent{font-size:9px}
+.note textarea{flex:1;height:0;min-height:92px}
+.cdbig{font-size:38px;color:var(--ink-strong)}
+.cdsub{color:var(--ink-faint)}
+.cd #cdBody{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:rgba(190,224,255,.34) transparent}
+.cd #cdBody::-webkit-scrollbar{width:4px;height:4px}.cd #cdBody::-webkit-scrollbar-track{background:transparent}.cd #cdBody::-webkit-scrollbar-thumb{background:rgba(190,224,255,.34);border-radius:5px}.cd #cdBody::-webkit-scrollbar-button{display:none;width:0;height:0}
+.cditem{padding:5px 0}
+.cdbig{font-size:30px;line-height:1.1}
+.cdsub{font-size:9px}
+.cdform{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:end;gap:5px;padding-top:0}
+.cdform input{height:27px;padding:0 7px;font-size:9px}
+.cdform button{height:27px;padding:0 8px;border-radius:8px;font-size:10px}
+
+/* 面板：外框负责层级，内部卡片负责信息组，不再每个按钮都漂浮。 */
+.feature-panel,.sheet,.dialog{padding:24px;background:radial-gradient(circle at 50% 0,rgba(129,182,255,.1),rgba(5,9,20,.72) 52%)}
+.feature-box{width:min(780px,94vw);max-height:88vh;padding:26px;border-radius:var(--panel-radius);background:rgba(8,17,35,.62);border-color:rgba(210,235,255,.24);box-shadow:0 28px 90px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.2)}
+.feature-head{align-items:flex-start;margin-bottom:20px}
+.feature-heading{min-width:0;flex:1}
+.feature-kicker{display:block;margin-bottom:4px;color:var(--blue-glow);font-size:9px;letter-spacing:.16em}
+.feature-heading h2{font-size:21px;letter-spacing:-.02em}
+.feature-heading p{margin:4px 0 0;color:var(--ink-faint);font-size:11px;line-height:1.5}
+.feature-close{width:30px;height:30px;color:var(--ink-soft);background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.16)}
+.feature-close:hover{color:#fff;background:rgba(255,255,255,.16)}
+.feature-tabs{gap:3px;margin-bottom:14px;padding:4px;border:1px solid rgba(255,255,255,.1);border-radius:12px;background:rgba(0,0,0,.12)}
+.feature-tabs button{height:30px;padding:0 12px;border:0;border-radius:8px;font-size:11px;color:var(--ink-faint);background:transparent}
+.feature-tabs button.on,.feature-tabs button:hover{color:#fff;background:rgba(151,204,255,.15)}
+.feature-toolbar{gap:7px;margin-bottom:12px}
+.feature-toolbar input,.block-add input{height:38px;border-radius:10px;background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.14)}
+.browser-list{max-height:58vh;gap:6px;padding-right:3px}
+.browser-item{position:relative;display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:9px;min-height:52px;padding:8px 11px;border-radius:12px;border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.035)}
+.browser-item:hover{background:rgba(151,204,255,.1);border-color:rgba(174,220,255,.24)}
+.browser-item strong{font-size:12px;font-weight:600}
+.browser-item span{font-size:10px;color:var(--ink-faint)}
+.browser-item .browser-copy{display:flex;flex-direction:column;min-width:0;gap:2px;max-width:none;overflow:hidden;font-size:inherit;color:inherit}
+.browser-item .browser-copy span{max-width:100%;font-size:10px;color:var(--ink-faint)}
+.browser-item .browser-kind{grid-row:1 / span 2;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:9px;color:var(--blue-glow);font-size:9px;background:rgba(151,204,255,.1);border:1px solid rgba(174,220,255,.18)}
+.browser-item .browser-open{max-width:none;color:var(--ink-faint);font-size:15px}
+.browser-group{margin:14px 2px 4px;color:var(--ink-soft);font-size:11px;letter-spacing:.04em}
+.feature-empty{padding:34px 20px;color:var(--ink-faint)}
+
+/* 生产力面板是两列工具台；番茄钟和标题占满宽度。 */
+.productivity-box{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
+.productivity-box>.feature-head,.productivity-box>.pomo-card{grid-column:1 / -1}
+.productivity-box>.feature-head{margin-bottom:2px}
+.pomo-card,.goal-card,.quote-card,.clock-card,.block-card{margin:0;padding:15px;border-radius:16px;background:rgba(255,255,255,.045);border-color:rgba(255,255,255,.11);box-shadow:none}
+.pomo-card{background:linear-gradient(135deg,rgba(151,204,255,.13),rgba(255,255,255,.035))}
+.pomo-time{font-size:46px;letter-spacing:-.03em}
+.goal-card .feature-head.mini,.clock-card .feature-head.mini,.block-card .feature-head.mini{margin-bottom:10px}
+.goal-edit{flex-wrap:wrap}
+.quote-card #quoteText{font-size:13px;line-height:1.75}
+.world-clock,.blocked-site{min-height:30px;padding:6px 0;border-top:1px solid rgba(255,255,255,.07)}
+.world-clock:first-child,.blocked-site:first-child{border-top:0}
+
+/* 设置和编辑弹窗也遵守同一个间距体系。 */
+.sheetbox{width:min(680px,100%);padding:26px;border-radius:var(--panel-radius);background:rgba(8,17,35,.68);border-color:rgba(210,235,255,.24);box-shadow:0 28px 90px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.2)}
+.sheetbox h2{font-size:19px;letter-spacing:-.02em}
+.sheetbody{gap:0;padding-right:7px}
+.sect{gap:10px;padding:17px 0;border-top:1px solid rgba(255,255,255,.1)}
+.sect:first-child{padding-top:0;border-top:0}
+.sect>label{font-size:11px;letter-spacing:.12em;color:var(--blue-glow)}
+.srow{flex-wrap:wrap;gap:8px 10px}
+.srow .lb{flex:0 0 92px;font-size:12px;color:var(--ink-soft)}
+.srow input[type=text],.srow select,.setting-textarea{height:36px;border-radius:10px;background:rgba(255,255,255,.065);border-color:rgba(255,255,255,.14)}
+.srow input[type=text]{flex:1 1 170px}
+.walls{gap:7px}
+.walls .sw{height:42px;border-radius:10px}
+.sheetfoot{padding-top:13px;border-top:1px solid rgba(255,255,255,.1)}
+.btnp{height:36px;padding:0 17px}
+
+/* 键盘焦点也保留玻璃语言，不依赖 hover 才能找到控件。 */
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(174,220,255,.75);outline-offset:2px}
+
+@media (max-width:760px){
+  .tgrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+  .tile{height:100px}
+  .tiletools{align-items:stretch;flex-direction:column;gap:8px}
+  .tiletools-actions{justify-content:flex-start}
+  .wgrow{gap:10px}
+  .calwrap,.todo,.note,.cd{width:calc((100% - 10px) / 2);max-width:none;flex-basis:calc((100% - 10px) / 2);min-height:224px}
+  .todo-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .feature-box{padding:21px}
+  .productivity-box{grid-template-columns:minmax(0,1fr)}
+  .productivity-box>.feature-head,.productivity-box>.pomo-card{grid-column:auto}
+}
+@media (max-width:480px){
+  .page{padding-inline:12px}
+  .topbar .chip:first-child{max-width:calc(100vw - 132px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar{gap:5px}
+  .topbar .iconbtn{width:34px;height:34px}
+  .tgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .tile{height:96px;border-radius:17px}
+  .wgrow{gap:8px}
+  .calwrap,.todo,.note,.cd{width:100%;flex-basis:100%;height:auto;min-height:178px}
+  .todo-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .todoRemind{grid-column:auto}
+  .cdform{grid-template-columns:1fr 1fr}
+  .cdform button{grid-column:1 / -1}
+  .feature-panel,.sheet,.dialog{padding:12px}
+  .feature-box,.sheetbox{max-height:92vh;padding:18px;border-radius:22px}
+  .feature-heading h2{font-size:18px}
+  .feature-heading p{font-size:10px}
+  .srow .lb{flex-basis:100%}
+  .srow input[type=text],.srow select,.setting-textarea{flex-basis:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important;animation:none !important}
+}
+
+/* end-of-file material anchor */
+.liquid-glass-design-final-anchor{display:none}
+
+/* ================= 最终材质契约（文件末尾） ================= */
+:root{
+  --lg-edge:rgba(225,244,255,.26);--lg-edge-strong:rgba(225,245,255,.44);
+  --lg-surface:rgba(255,255,255,.035);--lg-surface-soft:rgba(255,255,255,.055);
+  --lg-surface-strong:rgba(255,255,255,.10);--lg-surface-accent:rgba(171,218,255,.14);
+  --lg-shadow:rgba(2,8,24,.28);--lg-shadow-deep:rgba(2,7,20,.46);
+  --lg-ink:rgba(249,253,255,.96);--lg-muted:rgba(234,244,255,.70);--lg-faint:rgba(226,240,255,.48);
+  --lg-accent:#b9e0ff;--blue-glow:rgba(175,221,255,.78);--accent:#a8d9ff;
+}
+.feature-panel,.sheet,.dialog{background:radial-gradient(72% 48% at 50% 0,rgba(143,198,255,.12),rgba(4,9,22,.76) 78%),rgba(4,9,22,.48);-webkit-backdrop-filter:blur(9px) saturate(86%);backdrop-filter:blur(9px) saturate(86%)}
+.wpop,.feature-box,.sheetbox,.dlgbox,.toast{border-color:var(--lg-edge);background:linear-gradient(145deg,rgba(238,248,255,.095),rgba(255,255,255,.028) 54%,rgba(125,181,235,.055));box-shadow:0 28px 90px var(--lg-shadow-deep),inset 0 1px 1px rgba(255,255,255,.38)}
+.wpop > *,.feature-box > *,.sheetbox > *,.dlgbox > *{position:relative;z-index:1}
+.feature-tabs{background:rgba(5,13,29,.10);border-color:rgba(225,244,255,.14)}
+.feature-tabs button{border-color:var(--lg-edge);background:rgba(235,247,255,.045)}
+.feature-tabs button.on,.feature-tabs button:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)}
+.tile{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));box-shadow:0 10px 26px var(--lg-shadow)}
+.tile:hover{background:linear-gradient(145deg,rgba(238,248,255,.10),rgba(255,255,255,.028) 55%,rgba(145,201,255,.055));border-color:var(--lg-edge-strong);box-shadow:0 14px 30px var(--lg-shadow)}
+.tile .ic,.sbcard .ic{background:rgba(232,247,255,.12);border-color:rgba(225,244,255,.24);box-shadow:inset 0 1px 1px rgba(255,255,255,.38)}
+.tiletools{background:rgba(7,15,31,.16);border-color:var(--lg-edge);box-shadow:0 8px 24px rgba(3,9,24,.12)}
+.tiletools button,.tiletools select{background:rgba(235,247,255,.055);border-color:var(--lg-edge)}
+.tiletools button:hover,.tiletools button:focus-visible,.tiletools select:focus-visible{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.tiletools .tiletool-primary{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.tile.selected{outline:0;border-color:var(--lg-edge-strong);background:var(--lg-surface-accent);box-shadow:0 0 0 2px rgba(171,218,255,.14),0 14px 30px var(--lg-shadow)}
+.calwrap,.todo,.note,.cd{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 55%,rgba(145,201,255,.035));box-shadow:0 12px 28px var(--lg-shadow)}
+.wgrow > .glass{border-color:rgba(225,244,255,.22)}
+.calview,.caladd,.calnav{background:rgba(235,247,255,.055);border-color:var(--lg-edge)}
+.calview.on,.calview:hover,.caladd:hover,.calnav:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}
+.todotools button.on,.todotools button:hover{background:var(--lg-surface-accent);border-color:var(--lg-edge)}
+.calcell.today{background:rgba(183,226,255,.18);border-color:rgba(225,245,255,.44);box-shadow:0 2px 10px rgba(160,214,255,.10),inset 0 1px 1px rgba(255,255,255,.34)}
+.calx:hover{background:rgba(255,170,174,.22);border-color:rgba(255,205,208,.42)}
+.pomo-card,.goal-card,.quote-card,.clock-card,.block-card{background:linear-gradient(145deg,rgba(238,248,255,.065),rgba(255,255,255,.018) 62%,rgba(145,201,255,.028));border-color:rgba(225,244,255,.16);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.pomo-card{background:linear-gradient(135deg,rgba(171,218,255,.12),rgba(255,255,255,.026) 62%,rgba(212,193,230,.045))}
+.goalbar{background:rgba(225,244,255,.10)}.goalbar i{background:linear-gradient(90deg,#a9d9ff,#d0e8d9)}
+.srow input[type=text],.srow select,.setting-textarea,.feature-toolbar input,.block-add input,.dlgbox input,.dlgbox textarea,.sbsearch,.todo-main input,.todo-field input,.todo-field select,.note textarea,.cdform input{background:rgba(235,247,255,.052);border-color:var(--lg-edge)}
+.srow input[type=text]:focus,.srow select:focus,.setting-textarea:focus,.feature-toolbar input:focus,.block-add input:focus,.dlgbox input:focus,.dlgbox textarea:focus,.sbsearch:focus,.todo-main input:focus,.todo-field input:focus,.todo-field select:focus,.note textarea:focus,.cdform input:focus{background:rgba(220,241,255,.085);border-color:var(--lg-edge-strong)}
+.sbtn:hover,.sbtn.open,.eitem:hover,.eitem.on,.sbfilters button.on,.sbfilters button:hover,.sborganize:hover,.sbadd:hover,.seg button.on,.ptab.on{background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)}
+.sbtn,.eitem,.sbfilters button,.sborganize,.sbadd,.seg button,.ptab{border-color:var(--lg-edge)}
+.btnp:not(.ghost){background:var(--lg-surface-accent);border-color:var(--lg-edge-strong)}.btnp:not(.ghost):hover{background:rgba(183,226,255,.20);border-color:rgba(225,245,255,.56)}
+.sbar{background:linear-gradient(160deg,rgba(238,248,255,.085),rgba(255,255,255,.025) 48%,rgba(125,181,235,.05));border-color:var(--lg-edge);box-shadow:14px 0 44px var(--lg-shadow)}
+.sbar.dropping{border-color:var(--lg-edge-strong);box-shadow:14px 0 58px rgba(2,7,20,.56)}
+.sbsearch{background:rgba(235,247,255,.05);border-color:var(--lg-edge)}.sbfilters button,.sborganize,.sbadd{background:rgba(235,247,255,.065)}.sbtag{background:rgba(235,247,255,.08);border-color:rgba(225,244,255,.16)}
+.sbhint,.sbempty{color:var(--lg-faint)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(185,224,255,.76);outline-offset:2px}

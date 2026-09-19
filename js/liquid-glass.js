@@ -8,7 +8,7 @@
    2) 贴图经 feImage 进入 SVG 滤镜，由 3 路 feDisplacementMap（scale
       依次 1 / 1-0.10d / 1-0.20d）分离 RGB，再两次 screen 混合 → 边缘色散。
    3) 挂到 backdrop-filter: url(#id) saturate() brightness()，折射的是真实背景。
-   相同几何参数的元素共用同一个滤镜（如快捷方式网格的全部瓦片共用 1 个）。
+   每个元素独占滤镜实例；相同几何参数仍共用位移贴图数据，避免重复逐像素计算。
    ============================================================ */
 (function (global) {
   "use strict";
@@ -22,7 +22,7 @@
   var ROOT = document.documentElement;
   var DEF = { band: 0.16, str: 0.22, disp: 1, blur: 2.4 };
 
-  var defs = null, uid = 0, cache = {}, owner = {}, els = [], rafId = 0, sizeKey = "";
+  var defs = null, uid = 0, owner = {}, els = [], rafId = 0, sizeKey = "";
 
   /* ---------------- 数学 ---------------- */
   function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
@@ -176,8 +176,8 @@
         var n = document.getElementById(fid);
         if (n && n.parentNode) n.parentNode.removeChild(n);
       });
-      cache = {}; owner = {};
-      els.forEach(function (el) { el.__lgId = null; });
+      owner = {};
+      els.forEach(function (el) { el.__lgId = null; el.__lgKey = null; });
     }
 
     var used = {};
@@ -204,7 +204,7 @@
       if (!SUPPORTED) {
         if (el.__lgId !== "fallback") {
           el.__lgId = "fallback";
-          el.style.backdropFilter = "blur(18px) saturate(180%)";
+      el.style.backdropFilter = "blur(16px) saturate(140%)";
           el.style.webkitBackdropFilter = el.style.backdropFilter;
         }
         continue;
@@ -213,22 +213,26 @@
       var lite = !!el.__lgLite;
       var geo = [W, H, Math.round(radius), Math.round(band * 4), Math.round(strength * 4), Math.round(disp * 10)].join(",");
       var ck = (lite ? "L," : "N,") + geo;
-      id = cache[ck];
-      if (!id) {
+      var previousId = el.__lgId;
+      var filterNode = previousId && el.__lgKey === ck ? document.getElementById(previousId) : null;
+      if (filterNode) {
+        id = previousId;
+      } else {
         id = "lgf" + (++uid);
-        cache[ck] = id; owner[id] = ck;
+        owner[id] = el;
         defs.appendChild(lite
           ? buildFilterLite(id, getMap(geo, W, H, radius, band, strength), strength)
           : buildFilter(id, getMap(geo, W, H, radius, band, strength), strength, disp));
+        el.__lgId = id;
+        el.__lgKey = ck;
       }
       used[id] = 1;
 
-      if (el.__lgId !== id) {
-        el.__lgId = id;
+      if (previousId !== id || el.style.backdropFilter.indexOf("#" + id) < 0) {
         /* 不挂 blur —— Chromium 对「近透明背景 + border + backdrop blur」的组合
            会把模糊结果溢出绘制到元素顶缘外约 3σ 的壁纸区，形成一条亮带（实测 blur≥1px 即出现）。
            磨砂感由折射 + 页面纹理承担，不再依赖 backdrop blur。 */
-        var v = "url(#" + id + ") saturate(180%) brightness(1.03)";
+        var v = "url(#" + id + ") saturate(140%) brightness(1.02)";
         el.style.backdropFilter = v;
         el.style.webkitBackdropFilter = v;
       }
@@ -239,7 +243,11 @@
       if (!used[fid]) {
         var node = document.getElementById(fid);
         if (node && node.parentNode) node.parentNode.removeChild(node);
-        delete cache[owner[fid]];
+        var oldOwner = owner[fid];
+        if (oldOwner && oldOwner.__lgId === fid) {
+          oldOwner.__lgId = null;
+          oldOwner.__lgKey = null;
+        }
         delete owner[fid];
       }
     });

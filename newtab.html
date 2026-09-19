@@ -9,6 +9,7 @@
 <body>
 
 <div class="wall" id="wall"></div>
+<video class="wall-video" id="wallVideo" muted loop playsinline aria-hidden="true"></video>
 <div class="tex" id="tex"></div>
 <div class="vig"></div>
 
@@ -41,6 +42,17 @@
     <div class="glass chip" data-glass id="wxChip">
       <span class="dot" id="wxDot"></span><span id="wxChipText">天气加载中</span>
     </div>
+    <button class="glass chip iconbtn clickable" data-glass id="btnBrowser" title="浏览器数据" aria-label="浏览器数据">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"></path>
+        <path d="M4 8h16M8 4v4M16 4v4M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01"></path>
+      </svg>
+    </button>
+    <button class="glass chip iconbtn clickable" data-glass id="btnProductivity" title="生产力工具" aria-label="生产力工具">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.4v5l3.3 1.9M8.3 3.9 6.6 2.5M15.7 3.9l1.7-1.4"></path>
+      </svg>
+    </button>
     <button class="glass chip iconbtn clickable" data-glass id="btnSettings" title="设置" aria-label="设置">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3.1"></circle>
@@ -74,41 +86,71 @@
 
     <div class="tiles" id="tiles">
       <div class="tgrid" id="tileGrid"></div>
+      <div class="tiletools" id="tileTools" aria-label="快捷方式工具">
+        <div class="tiletools-info">
+          <span class="tiletools-kicker">快捷方式</span>
+          <strong id="tilePageLabel">常用</strong>
+          <span id="tileBatchCount" aria-live="polite"></span>
+        </div>
+        <div class="tiletools-actions">
+          <button type="button" class="tiletool-primary" id="tileBatchToggle">批量管理</button>
+          <button type="button" id="tileOpenAll">打开本组</button>
+          <button type="button" id="tileSelectAll" hidden>全选</button>
+          <button type="button" id="tileSetTags" hidden>设标签</button>
+          <button type="button" class="tiletool-danger" id="tileDeleteSelected" hidden>删除所选</button>
+        </div>
+      </div>
     </div>
 
-    <!-- 小组件行：按页可选，横排换行，各自可拖动 -->
+    <!-- 小组件行：按页可选，固定紧凑网格，避免与主内容互相遮挡 -->
     <div class="wgrow" id="wgRow">
-      <section class="glass calwrap" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="calWrap" aria-label="日历">
+      <section class="glass calwrap" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="calWrap" aria-label="日历">
       <button type="button" class="calx" id="calX" title="从本页移除日历" aria-label="从本页移除日历">×</button>
       <div class="calhead">
         <button type="button" class="calnav" id="calPrev" title="上个月" aria-label="上个月">‹</button>
         <div class="calm" id="calTitle">—</div>
         <button type="button" class="calnav" id="calNext" title="下个月" aria-label="下个月">›</button>
       </div>
+      <div class="caltools">
+        <button type="button" class="calview on" data-cal-view="month">月</button>
+        <button type="button" class="calview" data-cal-view="week">周</button>
+        <button type="button" class="caladd" id="calAddEvent" title="添加日程">＋日程</button>
+      </div>
       <div class="caldow"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
       <div class="calgrid" id="calGrid"></div>
+      <div class="calweek" id="calWeek" hidden></div>
+      <div class="calagenda" id="calAgenda"></div>
     </section>
 
     <!-- 待办小组件（清单全局，显示按页） -->
-    <aside class="glass todo" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="todoWrap" aria-label="待办清单">
+    <aside class="glass todo" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="todoWrap" aria-label="待办清单">
       <button type="button" class="calx" id="todoX" title="从本页移除待办" aria-label="从本页移除待办">×</button>
       <div class="wtitle">待办</div>
       <div class="todoadd">
-        <input id="todoInput" maxlength="60" placeholder="添加待办，回车确认" aria-label="添加待办">
-        <button type="button" id="todoAdd" title="添加">＋</button>
+        <div class="todo-main">
+          <input id="todoInput" maxlength="60" placeholder="写下下一件要完成的事" aria-label="添加待办">
+          <button type="button" id="todoAdd" title="添加">＋</button>
+        </div>
+        <div class="todo-options">
+          <label class="todo-field"><span>截止</span><input id="todoDue" type="date" title="截止日期" aria-label="截止日期"></label>
+          <label class="todo-field"><span>优先级</span><select id="todoPriority" title="优先级" aria-label="优先级"><option value="normal">普通</option><option value="high">重要</option><option value="urgent">紧急</option><option value="low">低</option></select></label>
+          <label class="todo-field"><span>重复</span><select id="todoRepeat" title="重复" aria-label="重复"><option value="none">不重复</option><option value="daily">每天</option><option value="weekly">每周</option><option value="monthly">每月</option></select></label>
+          <label class="todoRemind"><input id="todoRemind" type="checkbox"><span>到期提醒</span></label>
+        </div>
       </div>
+      <div class="todotools" id="todoTools"><button type="button" data-todo-filter="all" class="on">全部</button><button type="button" data-todo-filter="open">未完成</button><button type="button" data-todo-filter="done">已完成</button><button type="button" data-todo-filter="archived">归档</button></div>
       <div class="todolist" id="todoList"></div>
     </aside>
 
     <!-- 便签小组件（内容随页独立） -->
-    <aside class="glass note" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="noteWrap" aria-label="便签">
+    <aside class="glass note" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="noteWrap" aria-label="便签">
       <button type="button" class="calx" id="noteX" title="从本页移除便签" aria-label="从本页移除便签">×</button>
       <div class="wtitle">便签</div>
       <textarea id="noteText" placeholder="记点什么…自动保存（每页独立）" aria-label="便签内容"></textarea>
     </aside>
 
     <!-- 倒数日小组件（事件全局，显示按页） -->
-    <aside class="glass cd" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5" id="cdWrap" aria-label="倒数日">
+    <aside class="glass cd" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="cdWrap" aria-label="倒数日">
       <button type="button" class="calx" id="cdX" title="从本页移除倒数日" aria-label="从本页移除倒数日">×</button>
       <div class="wtitle">倒数日</div>
       <div id="cdBody"></div>
@@ -142,6 +184,27 @@
     <div class="wplabel">未来 5 天</div>
     <div class="wpdays" id="wpDays"></div>
   </div>
+  <div class="wpsec wxextra" id="wxExtra"></div>
+</div>
+
+<div class="feature-panel" id="browserPanel" aria-hidden="true">
+  <div class="feature-box browser-box" data-glass data-lg-str=".07" data-lg-band=".11" data-lg-disp=".35">
+    <div class="feature-head"><div class="feature-heading"><span class="feature-kicker">浏览器空间</span><h2>浏览器数据</h2><p>把收藏、历史和当前工作现场放在同一处。</p></div><button type="button" class="feature-close" id="browserClose" aria-label="关闭">×</button></div>
+    <div class="feature-tabs" id="browserTabs"><button type="button" data-browser-view="bookmarks" class="on">收藏夹</button><button type="button" data-browser-view="history">历史记录</button><button type="button" data-browser-view="recent">最近关闭</button><button type="button" data-browser-view="tabs">打开的标签</button><button type="button" data-browser-view="groups">标签组</button></div>
+    <div class="feature-toolbar"><input id="browserSearch" type="search" placeholder="搜索浏览器数据"><button type="button" class="ghostbtn" id="browserRefresh">刷新</button></div>
+    <div class="browser-list" id="browserList"></div>
+  </div>
+</div>
+
+<div class="feature-panel" id="productivityPanel" aria-hidden="true">
+  <div class="feature-box productivity-box" data-glass data-lg-str=".07" data-lg-band=".11" data-lg-disp=".35">
+    <div class="feature-head"><div class="feature-heading"><span class="feature-kicker">今日节奏</span><h2>生产力工具</h2><p>让今天的节奏变得可见，也更容易开始。</p></div><button type="button" class="feature-close" id="productivityClose" aria-label="关闭">×</button></div>
+    <div class="pomo-card"><div><span class="minor">番茄钟</span><strong id="pomoMode">专注</strong></div><div class="pomo-time" id="pomoTime">25:00</div><div class="pomo-actions"><button type="button" class="btnp" id="pomoStart">开始</button><button type="button" class="btnp ghost" id="pomoReset">重置</button></div></div>
+    <div class="goal-card"><div class="feature-head mini"><span>今日目标</span><span id="goalText">0 / 3</span></div><div class="goalbar"><i id="goalBar"></i></div><div class="goal-edit"><input id="goalInput" type="number" min="1" max="99" value="3"><button type="button" class="ghostbtn" id="goalSave">设置目标</button><button type="button" class="ghostbtn" id="focusToggle">开启专注模式</button></div></div>
+    <div class="quote-card"><span class="minor">每日一言</span><div id="quoteText"></div></div>
+    <div class="clock-card"><div class="feature-head mini"><span>世界时钟</span><button type="button" class="ghostbtn" id="clockAdd">添加</button></div><div id="worldClocks"></div></div>
+    <div class="block-card"><div class="feature-head mini"><span>站点屏蔽（专注模式生效）</span><button type="button" class="ghostbtn" id="blockAdd">添加</button></div><div class="block-add"><input id="blockInput" placeholder="example.com"><button type="button" class="ghostbtn" id="blockSave">保存</button></div><div id="blockedSites"></div></div>
+  </div>
 </div>
 
 <div class="drops" id="drops">
@@ -164,18 +227,44 @@
       <div class="sect">
         <label>壁纸</label>
         <div class="walls" id="walls"></div>
-        <div class="srow"><span class="lb">图片直链</span><input type="text" id="wallUrl" placeholder="https://example.com/wallpaper.jpg" aria-label="壁纸图片地址"></div>
+        <div class="srow"><span class="lb">图片/视频</span><input type="text" id="wallUrl" placeholder="图片、GIF、视频或 Unsplash/GIPHY 直链" aria-label="壁纸媒体地址"></div>
+        <div class="srow"><span class="lb">本地文件</span><button type="button" class="ghostbtn" id="btnWallFile">选择图片/GIF/视频</button><input type="file" id="wallFile" accept="image/*,video/*" style="display:none"></div>
         <div class="seg" id="wallMode">
           <button type="button" data-m="preset">渐变</button>
-          <button type="button" data-m="url">图片直链</button>
+          <button type="button" data-m="url">图片/GIF</button>
+          <button type="button" data-m="video">视频</button>
+          <button type="button" data-m="random">随机轮换</button>
           <button type="button" data-m="bing">必应每日</button>
         </div>
+        <div class="srow"><span class="lb">轮换间隔</span><select id="wallRotation"><option value="off">关闭</option><option value="5m">5 分钟</option><option value="15m">15 分钟</option><option value="1h">1 小时</option></select></div>
+        <div class="srow"><span class="lb">自定义 CSS</span><textarea class="setting-textarea" id="customCss" placeholder="例如：.clockbox{filter:drop-shadow(...)}"></textarea></div>
+        <div class="srow"><span class="lb">字体直链</span><input type="text" id="fontUrl" placeholder="https://example.com/font.woff2"><input type="text" id="fontFamily" placeholder="字体名称"></div>
       </div>
 
       <div class="sect">
         <label>天气</label>
         <div class="srow"><span class="lb">预设城市</span><div class="seg" id="citySeg"></div></div>
         <div class="srow"><span class="lb">自定义</span><input type="text" id="citySearch" placeholder="输入城市名，回车搜索（支持全球）"><button type="button" class="ghostbtn" id="btnGeo" title="使用浏览器当前位置">定位</button></div>
+        <div class="weather-cities" id="weatherCities"></div>
+      </div>
+
+      <div class="sect">
+        <label>搜索引擎</label>
+        <div class="srow"><span class="lb">自定义</span><input type="text" id="engineNameInput" placeholder="名称"><input type="text" id="engineKeywordInput" placeholder="关键词，如 !yt"><input type="text" id="engineUrlInput" placeholder="https://.../?q={query}"><button type="button" class="ghostbtn" id="engineAdd">添加</button></div>
+        <div class="engine-list" id="engineList"></div>
+        <div class="hint">输入 <code>!关键词 内容</code> 快速切换引擎；输入 <code>site:域名 关键词</code> 可站内搜索。</div>
+      </div>
+
+      <div class="sect">
+        <label>自动同步</label>
+        <div class="srow"><span class="lb">跨设备</span><div class="seg" id="syncSeg"><button type="button" data-sync="on">开启</button><button type="button" data-sync="off">关闭</button></div><span class="hint" id="syncState">使用浏览器同步存储</span></div>
+      </div>
+
+      <div class="sect">
+        <label>日历同步</label>
+        <div class="srow"><span class="lb">ICS 文件</span><button type="button" class="ghostbtn" id="btnCalendarFile">导入 Google/Outlook ICS</button><input type="file" id="calendarFile" accept=".ics,text/calendar" style="display:none"></div>
+        <div class="srow"><span class="lb">ICS 订阅</span><input type="text" id="calendarUrl" placeholder="粘贴 Google/Outlook 的 ICS 订阅地址"><button type="button" class="ghostbtn" id="calendarSync">同步</button></div>
+        <div class="calendar-sources" id="calendarSources"></div>
       </div>
 
       <div class="sect">
@@ -192,7 +281,7 @@
         <div class="srow"><span class="lb">本页倒数日</span><div class="seg" id="cdSeg">
           <button type="button" data-c="on">显示</button><button type="button" data-c="off">隐藏</button>
         </div></div>
-        <div class="srow"><span class="lb">说明</span><span class="hint" style="flex:1">小组件按页独立：只在开启的页面显示，摆位也随页保存；便签内容每页各一份</span></div>
+        <div class="srow"><span class="lb">说明</span><span class="hint" style="flex:1">小组件按页独立：只在开启的页面显示，自动紧凑排布；便签内容每页各一份</span></div>
       </div>
 
       <div class="sect">
@@ -205,7 +294,7 @@
           <button type="button" data-d="on">开</button><button type="button" data-d="off">关</button>
         </div></div>
         <div class="srow"><span class="lb">页面布局</span><div class="seg">
-          <button type="button" id="btnResetLayout">复位拖动过的模块</button>
+          <button type="button" id="btnResetLayout">复位搜索位置</button>
         </div></div>
       </div>
 
@@ -231,6 +320,7 @@
     <h3 id="dlgTitle">编辑快捷方式</h3>
     <div class="fld"><span>名称</span><input id="dlgName" type="text" placeholder="例如 GitHub" aria-label="名称"></div>
     <div class="fld"><span>网址</span><input id="dlgUrl" type="text" placeholder="https://github.com" aria-label="网址"></div>
+    <div class="fld"><span>标签</span><input id="dlgTags" type="text" maxlength="120" placeholder="可选，例如：常用，开发" aria-label="标签"></div>
     <div class="dlgfoot">
       <button type="button" class="btnp ghost" id="dlgDel">删除</button>
       <button type="button" class="btnp" id="dlgSave">保存</button>
@@ -238,17 +328,57 @@
   </div>
 </div>
 
+<div class="dialog" id="calEventDialog">
+  <div class="dlgbox" id="calEventBox" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5">
+    <h3>添加日程</h3>
+    <div class="fld"><span>名称</span><input id="calEventTitle" type="text" maxlength="80" placeholder="例如：项目评审"></div>
+    <div class="fld"><span>日期</span><input id="calEventStart" type="date"></div>
+    <div class="fld"><span>结束日期（可选）</span><input id="calEventEnd" type="date"></div>
+    <div class="fld"><span>地点</span><input id="calEventLocation" type="text" maxlength="120" placeholder="可选"></div>
+    <div class="dlgfoot"><button type="button" class="btnp ghost" id="calEventCancel">取消</button><button type="button" class="btnp" id="calEventSave">保存</button></div>
+  </div>
+</div>
+
+<div class="dialog" id="shortcutBatchDialog">
+  <div class="dlgbox" id="shortcutBatchBox" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5">
+    <h3>批量编辑快捷方式</h3>
+    <div class="dlghelp" id="shortcutBatchHelp">修改后会应用到当前选中的项目。</div>
+    <div class="fld"><span>标签</span><input id="batchTagsInput" type="text" maxlength="120" placeholder="用逗号分隔，留空表示清空"></div>
+    <div class="dlgfoot"><button type="button" class="btnp ghost" id="shortcutBatchCancel">取消</button><button type="button" class="btnp" id="shortcutBatchSave">应用</button></div>
+  </div>
+</div>
+
+<div class="dialog" id="worldClockDialog">
+  <div class="dlgbox" id="worldClockBox" data-glass data-lg-str=".08" data-lg-band=".12" data-lg-disp=".5">
+    <h3>添加世界时钟</h3>
+    <div class="dlghelp">使用标准时区名称，例如 Asia/Shanghai、Europe/Paris。</div>
+    <div class="fld"><span>显示名称</span><input id="clockNameInput" type="text" maxlength="30" placeholder="例如：巴黎"></div>
+    <div class="fld"><span>时区</span><input id="clockZoneInput" type="text" maxlength="80" placeholder="Europe/Paris"></div>
+    <div class="dlgfoot"><button type="button" class="btnp ghost" id="worldClockCancel">取消</button><button type="button" class="btnp" id="worldClockSave">添加</button></div>
+  </div>
+</div>
+
 <!-- 收集板：默认隐藏，鼠标移到屏幕最左缘（或往左缘拖东西 / 粘贴）唤出 -->
 <div class="sbzone" id="sbZone" title="收集板"></div>
 <aside class="sbar" id="sbar" aria-label="收集板">
-  <div class="sbRefr" data-glass data-lg-str=".09" data-lg-band=".13" data-lg-disp=".5" aria-hidden="true"></div>
+  <div class="sbRefr" data-glass data-lg-str=".09" data-lg-band=".13" data-lg-disp="0" aria-hidden="true"></div>
   <div class="sbhead">
     <span class="sbtitle">收集板</span>
     <span class="sbmeta" id="sbMeta">0 项</span>
+    <button type="button" class="sborganize" id="sbOrganize" title="一键整理" aria-label="一键整理">整理</button>
     <button type="button" class="sbadd" id="sbAdd" title="手动添加" aria-label="手动添加">+</button>
   </div>
+  <div class="sbtools">
+    <input id="sbSearch" class="sbsearch" type="search" placeholder="搜索标题、网址、文字或标签" aria-label="搜索收集板">
+    <div class="sbfilters" id="sbFilters" role="group" aria-label="收集板筛选">
+      <button type="button" data-filter="all" class="on">全部</button>
+      <button type="button" data-filter="link">链接</button>
+      <button type="button" data-filter="image">图片</button>
+      <button type="button" data-filter="text">笔记</button>
+    </div>
+  </div>
   <div class="sbcanvas" id="sbCanvas"></div>
-  <div class="sbhint">拖入链接 / 图片 / 文字 · 支持 Ctrl+V 粘贴 · Esc 关闭</div>
+  <div class="sbhint">拖入链接 / 图片 / 文字 · 支持 Ctrl+V 粘贴 · 可搜索和打标签</div>
 </aside>
 
 <div class="dialog" id="sbDlg">
@@ -262,6 +392,7 @@
       </div>
     </div>
     <div class="fld"><span>标题</span><input id="sbDlgName" type="text" placeholder="可选"></div>
+    <div class="fld"><span>标签</span><input id="sbDlgTags" type="text" placeholder="例如：项目，学习（用逗号分隔）"></div>
     <div class="fld" id="sbFldUrl"><span id="sbUrlLabel">网址</span><input id="sbDlgUrl" type="text" placeholder="https://"></div>
     <div class="fld" id="sbFldText" style="display:none"><span>内容</span><textarea id="sbDlgText" placeholder="记点什么…"></textarea></div>
     <div class="dlgfoot">
@@ -274,6 +405,8 @@
 <div class="toast" id="toast" data-glass data-lg-str=".3" data-lg-band=".35" data-lg-disp=".6"></div>
 
 <script src="js/liquid-glass.js"></script>
+<script src="js/collection-board-core.js"></script>
+<script src="js/drag-position.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
