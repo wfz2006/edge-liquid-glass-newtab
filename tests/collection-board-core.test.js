@@ -74,4 +74,11 @@ assert.deepStrictEqual(
 );
 assert.deepStrictEqual(core.removeByIds(boardItems, []).removed, []);
 
-console.log("collection-board-core: 22 assertions passed");
+const inheritedIdItem = { id: "toString", type: "text", text: "不要误删" };
+assert.deepStrictEqual(
+  core.removeByIds([inheritedIdItem], ["unrelated"]).items,
+  [inheritedIdItem],
+  "an unrelated selection must not remove an item whose id matches Object.prototype"
+);
+
+console.log("collection-board-core: 23 assertions passed");

@@ -96,7 +96,7 @@
   }
 
   function idLookup(ids) {
-    var lookup = {};
+    var lookup = Object.create(null);
     if (Array.isArray(ids)) ids.forEach(function (id) {
       if (id !== null && id !== undefined && String(id)) lookup[String(id)] = true;
     });
