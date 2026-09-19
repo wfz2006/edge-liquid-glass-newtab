@@ -57,4 +57,21 @@ const positions = core.organizePositions([link, note], {
 });
 assert.deepStrictEqual(positions, [{ x: 10, y: 10 }, { x: 10, y: 92 }]);
 
-console.log("collection-board-core: 15 assertions passed");
+const boardItems = [
+  { id: "keep", type: "link", url: "https://keep.example", x: 1, y: 2, z: 3 },
+  { id: "remove-a", type: "text", text: "保留撤销字段", tags: ["a"], x: 10, y: 20, z: 4 },
+  { id: "remove-b", type: "image", src: "data:image/png;base64,AA==", x: 30, y: 40, z: 5 }
+];
+const removedBatch = core.removeByIds(boardItems, ["remove-a", "remove-b", "missing"]);
+assert.deepStrictEqual(removedBatch.items, [boardItems[0]]);
+assert.deepStrictEqual(removedBatch.removed.map((entry) => entry.index), [1, 2]);
+assert.strictEqual(removedBatch.removed[0].item.text, "保留撤销字段");
+assert.deepStrictEqual(core.restoreByIds(removedBatch.items, removedBatch.removed), boardItems);
+assert.deepStrictEqual(
+  core.restoreByIds(boardItems, removedBatch.removed),
+  boardItems,
+  "restoring an already present id must not duplicate or overwrite it"
+);
+assert.deepStrictEqual(core.removeByIds(boardItems, []).removed, []);
+
+console.log("collection-board-core: 22 assertions passed");

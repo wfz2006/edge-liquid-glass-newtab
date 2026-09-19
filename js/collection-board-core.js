@@ -95,6 +95,46 @@
     view.scrollLeft = state.left || 0;
   }
 
+  function idLookup(ids) {
+    var lookup = {};
+    if (Array.isArray(ids)) ids.forEach(function (id) {
+      if (id !== null && id !== undefined && String(id)) lookup[String(id)] = true;
+    });
+    else if (ids && typeof ids === "object") Object.keys(ids).forEach(function (id) {
+      if (ids[id]) lookup[id] = true;
+    });
+    return lookup;
+  }
+
+  function removeByIds(items, ids) {
+    var lookup = idLookup(ids), kept = [], removed = [];
+    (items || []).forEach(function (item, index) {
+      var id = item && item.id !== undefined && item.id !== null ? String(item.id) : "";
+      if (id && lookup[id]) removed.push({ item: item, index: index });
+      else kept.push(item);
+    });
+    return { items: kept, removed: removed };
+  }
+
+  function restoreByIds(items, removed) {
+    var result = (items || []).slice();
+    (removed || []).slice().sort(function (a, b) {
+      return Number(a.index) - Number(b.index);
+    }).forEach(function (entry) {
+      var item = entry && entry.item;
+      if (!item || item.id === undefined || item.id === null) return;
+      var id = String(item.id);
+      if (result.some(function (current) {
+        return current && current.id !== undefined && String(current.id) === id;
+      })) return;
+      var index = Number(entry.index);
+      if (!isFinite(index)) index = result.length;
+      index = Math.max(0, Math.min(result.length, Math.floor(index)));
+      result.splice(index, 0, item);
+    });
+    return result;
+  }
+
   function organizePositions(items, options) {
     var opts = options || {};
     var x = typeof opts.x === "number" ? opts.x : 10;
@@ -123,6 +163,8 @@
     sameLink: sameLink,
     captureScroll: captureScroll,
     restoreScroll: restoreScroll,
+    removeByIds: removeByIds,
+    restoreByIds: restoreByIds,
     organizePositions: organizePositions
   };
 });
