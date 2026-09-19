@@ -666,6 +666,8 @@ body.drops-off .drops{display:none}
   color:#fff;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;
 }
 .toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.show{pointer-events:auto}
+.toast button{margin-left:10px;border:0;background:transparent;color:#b9e0ff;cursor:pointer;font:inherit;font-weight:600}
 
 /* ---------- 收集板（左侧栏画板） ----------
    容器刻意不做 backdrop-filter：外层若是玻璃，内部卡片会落进它的
@@ -708,6 +710,16 @@ body.drops-off .drops{display:none}
 .sbfilters button{height:24px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.72);
   background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);font:inherit;font-size:11px}
 .sbfilters button.on,.sbfilters button:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.42);color:#fff}
+.sbbatchtoggle{height:30px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);font:inherit;font-size:11px}
+.sbbatchtoggle:hover,.sbbatchtoggle[aria-pressed="true"]{background:rgba(255,255,255,.24);color:#fff}
+.sbbatchtools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.sbbatchcount{margin-right:auto;font-size:11px;color:rgba(255,255,255,.68);font-variant-numeric:tabular-nums}
+.sbbatchtools button{height:24px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.78);
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);font:inherit;font-size:10.5px}
+.sbbatchtools button:hover:not(:disabled),.sbbatchtools button:focus-visible{background:rgba(255,255,255,.22);color:#fff}
+.sbbatchtools button:disabled{cursor:not-allowed;opacity:.42}
+.sbbatchtools .sb-danger{color:rgba(255,220,224,.92);border-color:rgba(255,160,170,.34)}
 .sborganize{
   height:30px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);font:inherit;font-size:11px;
@@ -729,6 +741,12 @@ body.drops-off .drops{display:none}
   border-radius:18px;padding:12px 13px;
   cursor:grab;user-select:none;touch-action:none;
 }
+.sbcard.batch-mode{cursor:pointer}
+.sbcard.selected{outline:0;border-color:rgba(185,224,255,.9);background:rgba(171,218,255,.18);box-shadow:0 0 0 2px rgba(171,218,255,.18),0 14px 30px var(--lg-shadow)}
+.sbcard .sbcheck{position:absolute;left:9px;top:9px;width:20px;height:20px;border-radius:50%;display:none;
+  align-items:center;justify-content:center;color:#08213d;background:rgba(205,235,255,.9);font-size:12px;font-weight:700;z-index:5}
+.sbcard.batch-mode .sbcheck{display:flex}
+.sbcard.batch-mode .menu{display:none}
 .sbcard.dragging{cursor:grabbing}
 .sbcard .menu{
   position:absolute;top:8px;right:9px;width:22px;height:22px;border-radius:50%;
@@ -764,6 +782,8 @@ body.drops-off .drops{display:none}
   margin-top:9px;font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
   display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden;
 }
+.sbundo{display:inline-flex;align-items:center;gap:8px}
+.sbundo button{border:0;background:transparent;color:#b9e0ff;cursor:pointer;font:inherit;font-weight:600}
 .dlgbox textarea{
   min-height:86px;border-radius:11px;padding:9px 12px;font:inherit;font-size:13px;color:#fff;outline:none;resize:vertical;
   background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);
@@ -831,6 +851,16 @@ body.drops-off .drops{display:none}
 .sbsearch{background:rgba(235,247,255,.05);border-color:var(--lg-edge)}.sbfilters button,.sborganize,.sbadd{background:rgba(235,247,255,.065)}.sbtag{background:rgba(235,247,255,.08);border-color:rgba(225,244,255,.16)}
 .sbhint,.sbempty{color:var(--lg-faint)}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(185,224,255,.76);outline-offset:2px}
+
+/* 收集板批量操作沿用最终材质覆盖 */
+.sbbatchtoggle,.sbbatchtools button{border-color:var(--lg-edge);background:rgba(235,247,255,.065)}
+.sbbatchtoggle:hover,.sbbatchtoggle[aria-pressed="true"],
+.sbbatchtools button:hover:not(:disabled),.sbbatchtools button:focus-visible{
+  background:var(--lg-surface-accent);border-color:var(--lg-edge-strong);color:var(--lg-ink)
+}
+.sbbatchtools .sb-danger{color:var(--lg-danger);border-color:rgba(255,184,190,.34)}
+.sbcard.selected{border-color:var(--lg-edge-strong);background:var(--lg-surface-accent);box-shadow:0 0 0 2px rgba(171,218,255,.14),0 14px 30px var(--lg-shadow)}
+.sbundo button,.toast button{color:var(--lg-accent)}
 
 /* 搜索引擎菜单：单层玻璃片保留折射，但提高遮蔽度避免快捷图标穿透文字。 */
 .emenu .eitem{background:linear-gradient(145deg,rgba(225,244,255,.24),rgba(10,22,42,.62));border-color:var(--lg-edge);box-shadow:0 12px 30px rgba(2,8,24,.20),inset 0 1px 1px rgba(255,255,255,.32);-webkit-backdrop-filter:blur(12px) saturate(92%);backdrop-filter:blur(12px) saturate(92%)}

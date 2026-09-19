@@ -582,6 +582,7 @@
       if (!nextEnvelope || !nextEnvelope.state || Number(nextEnvelope.updatedAt) <= Number(S.updatedAt || 0)) return;
       var next = mergeSyncState(normalize(nextEnvelope.state), S);
       S = next;
+      sbPruneSelection();
       writeLocal(S);
       $("engineName").textContent = currentEngine().name;
       buildEngineMenu();
@@ -593,13 +594,24 @@
 
   /* ---------------- 小工具 ---------------- */
   var toastTimer = 0;
-  function toast(msg) {
+  function toast(msg, action) {
     var t = $("toast");
-    t.textContent = msg;
+    t.textContent = "";
+    var text = document.createElement("span");
+    text.textContent = msg;
+    t.appendChild(text);
+    if (typeof action === "function") {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "撤销";
+      button.addEventListener("click", action);
+      t.appendChild(button);
+    }
+    t.classList.toggle("sbundo", typeof action === "function");
     t.classList.add("show");
     window.LiquidGlass.refresh();
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2400);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, action ? 8000 : 2400);
   }
   function hostOf(u) {
     var m = /^https?:\/\/([^\/:?#]+)/i.exec(u || "");
@@ -1654,6 +1666,33 @@
   var sbH = {};                 /* 卡片 id → 实测高度（级联摆放 / 边界用） */
   var sbOpenState = false, sbCloseTimer = 0;
   var sbQuery = "", sbFilter = "all";
+  var sbBatchMode = false, sbSelected = Object.create(null), sbUndo = null, sbUndoTimer = 0;
+
+  function sbVisibleItems() {
+    return S.sidebar.filter(function (item) { return SB_CORE.matches(item, sbQuery, sbFilter); });
+  }
+  function sbSelectedItems() {
+    return S.sidebar.filter(function (item) { return !!sbSelected[item.id]; });
+  }
+  function sbPruneSelection() {
+    var live = Object.create(null);
+    S.sidebar.forEach(function (item) { if (item && sbSelected[item.id]) live[item.id] = true; });
+    sbSelected = live;
+  }
+  function sbToggleSelected(id) {
+    if (!id) return;
+    if (sbSelected[id]) delete sbSelected[id];
+    else sbSelected[id] = true;
+    renderSidebar();
+  }
+  function sbSelectVisible() {
+    sbVisibleItems().forEach(function (item) { if (item.id) sbSelected[item.id] = true; });
+    renderSidebar();
+  }
+  function sbClearSelection() {
+    sbSelected = Object.create(null);
+    renderSidebar();
+  }
 
   function sbExtent() {
     var m = 0;
@@ -1695,6 +1734,16 @@
     el.setAttribute("data-glass", "");
     el.setAttribute("data-lg-disp", "0");
     el.setAttribute("data-id", item.id);
+    el.setAttribute("role", "option");
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-selected", sbBatchMode && sbSelected[item.id] ? "true" : "false");
+    if (sbBatchMode) el.classList.add("batch-mode");
+    if (sbBatchMode && sbSelected[item.id]) el.classList.add("selected");
+    var check = document.createElement("span");
+    check.className = "sbcheck";
+    check.textContent = "✓";
+    check.setAttribute("aria-hidden", "true");
+    el.appendChild(check);
     el.title = item.url || item.src || "";
     el.style.zIndex = String(typeof item.z === "number" && isFinite(item.z) ? item.z : 0);
     window.LGDragPosition.apply(el, item.x || 0, item.y || 0);
@@ -1756,16 +1805,29 @@
       el.appendChild(note);
     }
 
-    var menu = document.createElement("div");
-    menu.className = "menu";
-    menu.textContent = "⋯";
-    menu.title = "编辑";
-    menu.addEventListener("click", function (ev) { ev.stopPropagation(); openSbDlg(idx); });
-    el.appendChild(menu);
+    if (!sbBatchMode) {
+      var menu = document.createElement("div");
+      menu.className = "menu";
+      menu.textContent = "⋯";
+      menu.title = "编辑";
+      menu.addEventListener("click", function (ev) { ev.stopPropagation(); openSbDlg(idx); });
+      el.appendChild(menu);
+    }
 
-    el.addEventListener("click", function () {
+    el.addEventListener("click", function (ev) {
+      if (sbBatchMode) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        sbToggleSelected(item.id);
+        return;
+      }
       if (item.type === "link" && item.url) openURL(item.url);
       else if (item.type === "image" && (item.url || item.src) && /^https?:/i.test(item.url || item.src)) openURL(item.url || item.src);
+    });
+    el.addEventListener("keydown", function (ev) {
+      if (!sbBatchMode || (ev.key !== "Enter" && ev.key !== " ")) return;
+      ev.preventDefault();
+      sbToggleSelected(item.id);
     });
     return el;
   }
@@ -1807,9 +1869,10 @@
     S.sidebar.forEach(function (it, i) {
       if (!SB_CORE.matches(it, sbQuery, sbFilter)) return;
       var el = sbCardEl(it, i);
-      attachDrag(el, sbCardSpec(i, el));
+      if (!sbBatchMode) attachDrag(el, sbCardSpec(i, el));
       box.appendChild(el);
     });
+    renderSbBatchTools();
     sbMeasure();
     sbSyncMeta();
     window.LiquidGlass.refresh();
@@ -1823,9 +1886,30 @@
       if (id) sbH[id] = cards[i].offsetHeight;
     }
   }
+  function renderSbBatchTools() {
+    sbPruneSelection();
+    var toggle = $("sbBatchToggle"), row = $("sbBatchTools"), count = $("sbBatchCount");
+    var selectAll = $("sbSelectAll"), clear = $("sbClearSelection"), del = $("sbDeleteSelected");
+    var chosen = sbSelectedItems().length, visible = sbVisibleItems().length;
+    if (toggle) {
+      toggle.textContent = sbBatchMode ? "退出批量" : "批量";
+      toggle.setAttribute("aria-pressed", sbBatchMode ? "true" : "false");
+    }
+    if (row) row.hidden = !sbBatchMode;
+    if (count) count.textContent = "已选 " + chosen + " 项";
+    if (selectAll) selectAll.disabled = !visible;
+    if (clear) clear.disabled = !chosen;
+    if (del) del.disabled = !chosen;
+  }
+  function toggleSbBatch() {
+    sbBatchMode = !sbBatchMode;
+    if (!sbBatchMode) sbSelected = Object.create(null);
+    renderSidebar();
+  }
   function sbSyncMeta() {
-    var visible = S.sidebar.filter(function (it) { return SB_CORE.matches(it, sbQuery, sbFilter); }).length;
+    var visible = sbVisibleItems().length;
     $("sbMeta").textContent = visible === S.sidebar.length ? visible + " 项" : visible + "/" + S.sidebar.length + " 项";
+    renderSbBatchTools();
   }
   function clampSb() {
     var box = $("sbCanvas");
@@ -2066,6 +2150,31 @@
     renderSidebar();
     closeSbDlg();
   }
+  function sbDeleteSelected() {
+    var chosen = sbSelectedItems();
+    if (!chosen.length) { toast("请先选择收集项"); return; }
+    if (!window.confirm("确定删除已选中的 " + chosen.length + " 项收集内容？")) return;
+    var removed = SB_CORE.removeByIds(S.sidebar, Object.keys(sbSelected));
+    if (!removed.removed.length) { sbSelected = Object.create(null); renderSidebar(); return; }
+    sbUndo = { removed: removed.removed };
+    clearTimeout(sbUndoTimer);
+    S.sidebar = removed.items;
+    sbSelected = Object.create(null);
+    store.save({ sidebar: S.sidebar });
+    renderSidebar();
+    toast("已删除 " + removed.removed.length + " 项", sbUndoDelete);
+    sbUndoTimer = setTimeout(function () { sbUndo = null; }, 8000);
+  }
+  function sbUndoDelete() {
+    if (!sbUndo) return;
+    var snapshot = sbUndo;
+    sbUndo = null;
+    clearTimeout(sbUndoTimer);
+    S.sidebar = SB_CORE.restoreByIds(S.sidebar, snapshot.removed);
+    store.save({ sidebar: S.sidebar });
+    renderSidebar();
+    toast("已撤销删除");
+  }
 
   function initSb() {
     $("sbZone").addEventListener("mouseenter", openSb);
@@ -2074,6 +2183,10 @@
     $("sbar").addEventListener("mouseleave", scheduleSbClose);
     $("sbAdd").addEventListener("click", function () { openSbDlg(-1); });
     $("sbOrganize").addEventListener("click", organizeSidebar);
+    $("sbBatchToggle").addEventListener("click", toggleSbBatch);
+    $("sbSelectAll").addEventListener("click", sbSelectVisible);
+    $("sbClearSelection").addEventListener("click", sbClearSelection);
+    $("sbDeleteSelected").addEventListener("click", sbDeleteSelected);
     $("sbSearch").addEventListener("input", function () {
       sbQuery = this.value;
       renderSidebar();
@@ -3292,6 +3405,12 @@
 
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
+        if (sbBatchMode) {
+          sbBatchMode = false;
+          sbSelected = Object.create(null);
+          renderSidebar();
+          return;
+        }
         toggleEngineMenu(false); closeSheet(); closeDialog(); closeBrowserPanel(); closeProductivityPanel(); smenuHide(); closeWxPop(); $("calEventDialog").classList.remove("open"); closeShortcutBatchDialog(); closeWorldClockDialog();
         if ($("sbDlg").classList.contains("open")) closeSbDlg(); else closeSb();
         return;

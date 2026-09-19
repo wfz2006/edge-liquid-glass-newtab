@@ -15,7 +15,8 @@ for (const id of [
   "tileDeleteSelected", "todoDue", "todoPriority", "todoRepeat",
   "todoRemind", "tilePageLabel", "shortcutBatchDialog", "worldClockDialog", "clockZoneInput",
   "calWeek", "calAgenda", "wallFile", "weatherCities", "engineAdd", "syncSeg",
-  "calendarSync", "dlgTags"
+  "calendarSync", "dlgTags", "sbBatchToggle", "sbBatchCount", "sbSelectAll",
+  "sbClearSelection", "sbDeleteSelected"
 ]) assert.ok(ids.has(id), `missing feature DOM id: ${id}`);
 for (const id of ["tileFolderFilter", "tileSetFolder", "dlgFolder", "batchFolderInput"]) {
   assert.ok(!ids.has(id), `folder feature DOM id should be removed: ${id}`);
@@ -26,6 +27,16 @@ for (const permission of ["bookmarks", "history", "sessions", "tabs", "tabGroups
 }
 assert.strictEqual(manifest.background.service_worker, "js/background.js");
 assert.match(app, /chrome\.storage\.sync/);
+const content = fs.readFileSync(require.resolve("../js/content.js"), "utf8");
+assert.match(app, /function sbDeleteSelected\(\)/);
+assert.match(app, /SB_CORE\.removeByIds/);
+assert.match(app, /SB_CORE\.restoreByIds/);
+assert.match(css, /\.sbcard\.selected/);
+assert.match(app, /var sbBatchMode = false, sbSelected = Object\.create\(null\)/);
+assert.match(app, /var live = Object\.create\(null\)/);
+assert.doesNotMatch(app, /sbSelected\s*=\s*\{\}/);
+assert.match(app, /if \(sbBatchMode\) \{[\s\S]*?sbBatchMode = false;[\s\S]*?sbSelected = Object\.create\(null\);[\s\S]*?renderSidebar\(\);[\s\S]*?return;/);
+assert.match(app, /if \(\$\("sbDlg"\)\.classList\.contains\("open"\)\) closeSbDlg\(\); else closeSb\(\);/);
 assert.match(background, /SYNC_CHUNK_CHARS/);
 assert.match(app, /normalizeShortcut/);
 assert.match(app, /parseICS/);

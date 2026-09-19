@@ -366,6 +366,7 @@
     <span class="sbtitle">收集板</span>
     <span class="sbmeta" id="sbMeta">0 项</span>
     <button type="button" class="sborganize" id="sbOrganize" title="一键整理" aria-label="一键整理">整理</button>
+    <button type="button" class="sbbatchtoggle" id="sbBatchToggle" title="批量管理" aria-label="批量管理" aria-pressed="false">批量</button>
     <button type="button" class="sbadd" id="sbAdd" title="手动添加" aria-label="手动添加">+</button>
   </div>
   <div class="sbtools">
@@ -375,6 +376,12 @@
       <button type="button" data-filter="link">链接</button>
       <button type="button" data-filter="image">图片</button>
       <button type="button" data-filter="text">笔记</button>
+    </div>
+    <div class="sbbatchtools" id="sbBatchTools" hidden aria-label="收集板批量操作">
+      <span class="sbbatchcount" id="sbBatchCount" aria-live="polite">已选 0 项</span>
+      <button type="button" id="sbSelectAll">全选当前</button>
+      <button type="button" id="sbClearSelection">清空选择</button>
+      <button type="button" class="sb-danger" id="sbDeleteSelected" disabled>删除所选</button>
     </div>
   </div>
   <div class="sbcanvas" id="sbCanvas"></div>
