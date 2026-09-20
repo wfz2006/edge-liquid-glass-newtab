@@ -408,10 +408,19 @@
     render();
     showNotice("已撤销删除");
   }
-  batchToggle.addEventListener("click", function () {
-    batchMode = !batchMode;
-    if (!batchMode) selectedIds = Object.create(null);
+  function leaveBatchMode() {
+    if (!batchMode) return false;
+    batchMode = false;
+    selectedIds = Object.create(null);
     render();
+    return true;
+  }
+  batchToggle.addEventListener("click", function () {
+    if (batchMode) leaveBatchMode();
+    else {
+      batchMode = true;
+      render();
+    }
   });
   selectAllButton.addEventListener("click", selectVisible);
   clearSelectionButton.addEventListener("click", clearSelection);
@@ -825,7 +834,12 @@
   bar.addEventListener("mouseenter", function () { clearTimeout(closeTimer); });
   bar.addEventListener("mouseleave", scheduleClose);
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") closeBar();
+    if (e.key !== "Escape") return;
+    if (batchMode) {
+      leaveBatchMode();
+      return;
+    }
+    closeBar();
   });
 
   /* ---------------- 拖放收集 ---------------- */
@@ -981,11 +995,35 @@
   } catch (e) {}
 
   /* ---------------- 测试钩子（隔离世界专用，命名空间挂 documentElement） ---------------- */
-  document.documentElement.__lgCollect = {
+  var collectHook = {
     open: openBar,
     close: closeBar,
     isOpen: isOpen,
     add: function (it) { addItem(it); },
     count: function () { return st.sidebar.length; }
   };
+  if (window.__LG_CONTENT_TEST__ === true) {
+    collectHook.__test = {
+      toggleBatch: function () { batchToggle.click(); },
+      toggleSelected: toggleSelected,
+      selectVisible: selectVisible,
+      clearSelection: clearSelection,
+      deleteSelected: deleteSelected,
+      undoDelete: undoDelete,
+      setFilter: function (type) { filterType = type || "all"; render(); },
+      state: function () {
+        return {
+          batchMode: batchMode,
+          selectedIds: Object.keys(selectedIds),
+          visibleIds: visibleItems().map(function (item) { return item.id; }),
+          sidebarIds: st.sidebar.map(function (item) { return item.id; }),
+          selectedCount: selectedItems().length,
+          selectAllDisabled: !!selectAllButton.disabled,
+          deleteDisabled: !!deleteSelectedButton.disabled,
+          undoAvailable: !!undoSnapshot
+        };
+      }
+    };
+  }
+  document.documentElement.__lgCollect = collectHook;
 })();
