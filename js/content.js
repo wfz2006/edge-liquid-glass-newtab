@@ -979,10 +979,11 @@
       var v = ch[KEY].newValue;
       if (!v || typeof v !== "object") return;
       var incoming = normItems(v.sidebar);
-      var sameSidebar = JSON.stringify(incoming) === JSON.stringify(st.sidebar);
+      var previousSidebar = st.sidebar;
       st = v;
       st.sidebar = incoming;
       pruneSelection();
+      var sameSidebar = JSON.stringify(incoming) === JSON.stringify(previousSidebar);
       renderFocusBlock(st);
       if (sameSidebar) {
         syncMeta();

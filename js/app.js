@@ -577,6 +577,23 @@
   };
 
   function handleStorageChange(changes, areaName) {
+    if (areaName === "local" && changes && changes[KEY] && S) {
+      var raw = changes[KEY].newValue;
+      if (!raw || typeof raw !== "object") return;
+      var next = normalize(raw);
+      var sameSidebar = JSON.stringify(next.sidebar) === JSON.stringify(S.sidebar);
+      if (sameSidebar) {
+        sbPruneSelection();
+        sbSyncMeta();
+        renderSbBatchTools();
+        return;
+      }
+      S = next;
+      sbPruneSelection();
+      renderSidebar();
+      persistImages();
+      return;
+    }
     if (areaName !== "sync" || !changes || !changes[SYNC_KEY] || !S || S.syncEnabled === false) return;
     readSyncEnvelope(function (nextEnvelope) {
       if (!nextEnvelope || !nextEnvelope.state || Number(nextEnvelope.updatedAt) <= Number(S.updatedAt || 0)) return;
