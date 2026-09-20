@@ -81,11 +81,16 @@ class StubElement {
     return true;
   }
   click() { return this.dispatchEvent({ type: "click" }); }
-  attachShadow() {
+  attachShadow(options) {
+    const mode = options && options.mode;
     const shadow = new StubShadow(this.ownerDocument);
+    this.attachShadowMode = mode;
+    if (mode === "open") this.shadowRoot = shadow;
+    else delete this.shadowRoot;
     if (this.ownerDocument) {
       this.ownerDocument.lastClosedShadow = shadow;
       this.ownerDocument.lastClosedShadowHost = this;
+      this.ownerDocument.lastShadowMode = mode;
     }
     return shadow;
   }
@@ -234,17 +239,26 @@ function createHarness(options = {}) {
     window,
     shadow: document.lastClosedShadow,
     shadowHost: document.lastClosedShadowHost,
+    shadowMode: document.lastShadowMode,
     hook: document.documentElement.__lgCollect
   };
 }
+
+const openShadowDocument = new StubDocument();
+const openShadowHost = openShadowDocument.createElement("div");
+const openShadow = openShadowHost.attachShadow({ mode: "open" });
+assert.strictEqual(openShadowHost.attachShadowMode, "open", "stub should record an open shadow request");
+assert.strictEqual(openShadowHost.shadowRoot, openShadow, "open shadow roots should be exposed on the host");
 
 const gatedOffHarness = createHarness({ contentTest: false });
 assert.strictEqual(gatedOffHarness.hook.__test, undefined, "content test hook should be absent when the flag is false");
 const gatedUnsetHarness = createHarness();
 assert.strictEqual(gatedUnsetHarness.hook.__test, undefined, "content test hook should be absent when the flag is unset");
 const harness = createHarness({ contentTest: true });
-const { document, window, shadow, shadowHost, hook } = harness;
+const { document, window, shadow, shadowHost, shadowMode, hook } = harness;
 assert.ok(hook && hook.__test, "content test hook should be gated and available in the harness");
+assert.strictEqual(shadowMode, "closed", "content should request a closed shadow root");
+assert.strictEqual(shadowHost.attachShadowMode, "closed", "harness host should record the closed shadow request");
 assert.strictEqual(shadowHost.shadowRoot, undefined, "closed shadow root should not be exposed on the host");
 assert.ok(shadow, "harness should capture the closed shadow root without exposing it on the host");
 const test = hook.__test;
