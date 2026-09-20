@@ -204,6 +204,9 @@
  .organize{height:28px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
    background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.22);font:inherit;font-size:11px}
  .organize:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
+ .batch-toggle{height:28px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
+   background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.22);font:inherit;font-size:11px}
+ .batch-toggle:hover,.batch-toggle[aria-pressed="true"]{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
  .tools{padding:0 16px 8px;display:flex;flex-direction:column;gap:7px}
  .search{width:100%;height:30px;border-radius:10px;padding:0 10px;outline:none;color:#fff;
    background:rgba(235,247,255,.052);border:1px solid rgba(225,244,255,.26);font:inherit;font-size:12px}
@@ -213,6 +216,14 @@
  .filter{height:24px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.72);
    background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.20);font:inherit;font-size:11px}
  .filter.on,.filter:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
+ .batch-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+ .batch-tools[hidden],.notice[hidden]{display:none}
+ .batch-count{margin-right:auto;font-size:11px;color:rgba(255,255,255,.68);font-variant-numeric:tabular-nums}
+ .batch-tools button{height:24px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.78);
+   background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.20);font:inherit;font-size:10.5px}
+ .batch-tools button:hover:not(:disabled),.batch-tools button:focus-visible{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
+ .batch-tools button:disabled{cursor:not-allowed;opacity:.42}
+ .batch-tools .delete-selected{color:rgba(255,220,224,.92);border-color:rgba(255,160,170,.34)}
 .canvas{flex:1;position:relative;overflow-y:auto;overflow-x:hidden;padding:4px 0 18px;
   overscroll-behavior:contain;scrollbar-gutter:stable}
 .canvas::-webkit-scrollbar{width:6px}
@@ -231,6 +242,12 @@
 .glass > *{position:relative;z-index:3}
 .sbcard{position:absolute;left:0;top:0;width:252px;border-radius:18px;padding:12px 13px;
   cursor:grab;user-select:none;touch-action:none}
+.sbcard.batch-mode{cursor:pointer;touch-action:auto}
+.sbcard.selected{border-color:rgba(185,224,255,.9);background:rgba(171,218,255,.18);box-shadow:0 0 0 2px rgba(171,218,255,.18),0 14px 34px rgba(2,8,24,.28)}
+.sbcard .sbcheck{position:absolute;left:9px;top:9px;width:20px;height:20px;border-radius:50%;display:none;
+  align-items:center;justify-content:center;color:#08213d;background:rgba(205,235,255,.9);font-size:12px;font-weight:700;z-index:5}
+.sbcard.batch-mode .sbcheck{display:flex}
+.sbcard.batch-mode .del{display:none}
 .sbcard.dragging{cursor:grabbing}
 .sbcard .cap{display:flex;align-items:center;gap:9px;min-width:0}
 .sbcard .ic{width:34px;height:34px;flex:0 0 auto;border-radius:10px;display:flex;align-items:center;
@@ -252,6 +269,11 @@
   background:rgba(235,247,255,.12);border:1px solid rgba(225,244,255,.18);opacity:0;transition:opacity .2s}
 .sbcard:hover .del{opacity:1}
 .del:hover{background:rgba(171,218,255,.18);border-color:rgba(225,245,255,.42)}
+.notice{position:absolute;left:14px;right:14px;bottom:42px;z-index:8;display:flex;align-items:center;gap:8px;
+  padding:8px 11px;border-radius:12px;color:rgba(255,255,255,.9);background:rgba(8,22,44,.88);
+  border:1px solid rgba(185,224,255,.34);box-shadow:0 10px 30px rgba(2,8,24,.32);font-size:11.5px}
+.notice-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notice button{margin-left:auto;border:0;background:transparent;color:#b9e0ff;cursor:pointer;font:inherit;font-weight:600}
 `;
   var host = document.createElement("div");
   host.id = "lg-collect-host";
@@ -262,12 +284,16 @@
     '<div class="zone" title="收集板"></div>' +
     '<aside class="sbar">' +
      '<div class="sbRefr" data-glass data-lg-str=".09" data-lg-band=".13" data-lg-disp="0" aria-hidden="true"></div>' +
-     '<div class="head"><span class="ttl">收集板</span><span class="meta">0 项</span><button type="button" class="organize" title="一键整理" aria-label="一键整理">整理</button><button type="button" class="current" title="收藏当前网页" aria-label="收藏当前网页">＋</button></div>' +
+     '<div class="head"><span class="ttl">收集板</span><span class="meta">0 项</span><button type="button" class="organize" title="一键整理" aria-label="一键整理">整理</button><button type="button" class="batch-toggle" title="批量管理" aria-label="批量管理" aria-pressed="false">批量</button><button type="button" class="current" title="收藏当前网页" aria-label="收藏当前网页">＋</button></div>' +
      '<div class="tools"><input class="search" type="search" placeholder="搜索标题、网址、文字或标签" aria-label="搜索收集板">' +
      '<div class="filters" role="group" aria-label="收集板筛选"><button type="button" class="filter on" data-filter="all">全部</button>' +
      '<button type="button" class="filter" data-filter="link">链接</button><button type="button" class="filter" data-filter="image">图片</button>' +
-     '<button type="button" class="filter" data-filter="text">笔记</button></div></div>' +
+     '<button type="button" class="filter" data-filter="text">笔记</button></div>' +
+     '<div class="batch-tools" hidden aria-label="收集板批量操作"><span class="batch-count" aria-live="polite">已选 0 项</span>' +
+     '<button type="button" class="select-all">全选当前</button><button type="button" class="clear-selection">清空选择</button>' +
+     '<button type="button" class="delete-selected" disabled>删除所选</button></div></div>' +
      '<div class="canvas"></div>' +
+     '<div class="notice" role="status" aria-live="polite" hidden><span class="notice-text"></span><button type="button" class="notice-undo" hidden>撤销</button></div>' +
      '<div class="hint">拖入链接 / 图片 / 文字 · 拖动卡片调整位置 · Ctrl+V 粘贴 · 新标签页可编辑</div>' +
     '</aside>';
   document.documentElement.appendChild(host);
@@ -278,6 +304,17 @@
   var meta = sh.querySelector(".meta");
   var organizeBtn = sh.querySelector(".organize");
   var currentBtn = sh.querySelector(".current");
+  var batchMode = false, selectedIds = Object.create(null), undoSnapshot = null, undoTimer = 0;
+  var batchToggle = sh.querySelector(".batch-toggle");
+  var batchTools = sh.querySelector(".batch-tools");
+  var batchCount = sh.querySelector(".batch-count");
+  var selectAllButton = sh.querySelector(".select-all");
+  var clearSelectionButton = sh.querySelector(".clear-selection");
+  var deleteSelectedButton = sh.querySelector(".delete-selected");
+  var notice = sh.querySelector(".notice");
+  var noticeText = sh.querySelector(".notice-text");
+  var noticeUndo = sh.querySelector(".notice-undo");
+  var noticeTimer = 0;
   var searchInput = sh.querySelector(".search");
   var filterButtons = [].slice.call(sh.querySelectorAll(".filter"));
   var dragCard = null, suppressCardClickUntil = 0;
@@ -293,6 +330,92 @@
       render();
     });
   });
+  function visibleItems() {
+    return st.sidebar.filter(function (item) { return CORE.matches(item, searchQuery, filterType); });
+  }
+  function selectedItems() {
+    return st.sidebar.filter(function (item) { return item && selectedIds[item.id] === true; });
+  }
+  function pruneSelection() {
+    var live = Object.create(null);
+    st.sidebar.forEach(function (item) {
+      if (item && selectedIds[item.id] === true) live[item.id] = true;
+    });
+    selectedIds = live;
+  }
+  function renderBatchTools() {
+    pruneSelection();
+    var chosen = selectedItems().length;
+    var visible = visibleItems().length;
+    batchToggle.textContent = batchMode ? "退出批量" : "批量";
+    batchToggle.setAttribute("aria-pressed", batchMode ? "true" : "false");
+    batchTools.hidden = !batchMode;
+    batchCount.textContent = "已选 " + chosen + " 项";
+    selectAllButton.disabled = !visible;
+    clearSelectionButton.disabled = !chosen;
+    deleteSelectedButton.disabled = !chosen;
+  }
+  function toggleSelected(id) {
+    if (!id) return;
+    if (selectedIds[id] === true) delete selectedIds[id];
+    else selectedIds[id] = true;
+    render();
+  }
+  function selectVisible() {
+    visibleItems().forEach(function (item) {
+      if (item && item.id !== undefined && item.id !== null) selectedIds[String(item.id)] = true;
+    });
+    render();
+  }
+  function clearSelection() {
+    selectedIds = Object.create(null);
+    render();
+  }
+  function showNotice(message, action) {
+    clearTimeout(noticeTimer);
+    noticeText.textContent = message;
+    noticeUndo.hidden = typeof action !== "function";
+    noticeUndo.onclick = typeof action === "function" ? action : null;
+    notice.hidden = false;
+    noticeTimer = setTimeout(function () { notice.hidden = true; }, action ? 8000 : 2400);
+  }
+  function deleteSelected() {
+    var chosen = selectedItems();
+    if (!chosen.length) { showNotice("请先选择收集项"); return; }
+    if (!window.confirm("确定删除已选中的 " + chosen.length + " 项收集内容？")) return;
+    var removed = CORE.removeByIds(st.sidebar, Object.keys(selectedIds));
+    if (!removed.removed.length) {
+      selectedIds = Object.create(null);
+      render();
+      return;
+    }
+    undoSnapshot = { removed: removed.removed };
+    clearTimeout(undoTimer);
+    st.sidebar = removed.items;
+    selectedIds = Object.create(null);
+    saveSidebar();
+    render();
+    showNotice("已删除 " + removed.removed.length + " 项", undoDelete);
+    undoTimer = setTimeout(function () { undoSnapshot = null; }, 8000);
+  }
+  function undoDelete() {
+    if (!undoSnapshot) return;
+    var snapshot = undoSnapshot;
+    undoSnapshot = null;
+    clearTimeout(undoTimer);
+    st.sidebar = CORE.restoreByIds(st.sidebar, snapshot.removed);
+    saveSidebar();
+    render();
+    showNotice("已撤销删除");
+  }
+  batchToggle.addEventListener("click", function () {
+    batchMode = !batchMode;
+    if (!batchMode) selectedIds = Object.create(null);
+    render();
+  });
+  selectAllButton.addEventListener("click", selectVisible);
+  clearSelectionButton.addEventListener("click", clearSelection);
+  deleteSelectedButton.addEventListener("click", deleteSelected);
   function cardHeight(item) {
     var cards = canvas.querySelectorAll(".sbcard");
     for (var i = 0; i < cards.length; i++) {
@@ -573,13 +696,14 @@
     el.style.background = "linear-gradient(142deg,hsl(" + h + " 48% 66% / .30),hsl(" + ((h + 38) % 360) + " 42% 54% / .22))";
   }
   function render() {
+    pruneSelection();
     var view = CORE.captureScroll(canvas);
     canvas.textContent = "";
     var stage = document.createElement("div");
     stage.className = "stage";
     canvas.appendChild(stage);
     var bottom = 10;
-    var visible = st.sidebar.filter(function (it) { return CORE.matches(it, searchQuery, filterType); });
+    var visible = visibleItems();
     if (!visible.length) {
       var e = document.createElement("div");
       e.className = "empty";
@@ -591,6 +715,11 @@
       var el = document.createElement("div");
       el.className = "glass sbcard";
       el.setAttribute("data-id", it.id);
+      el.setAttribute("role", "option");
+      el.setAttribute("tabindex", "0");
+      el.setAttribute("aria-selected", batchMode && selectedIds[it.id] === true ? "true" : "false");
+      if (batchMode) el.classList.add("batch-mode");
+      if (batchMode && selectedIds[it.id] === true) el.classList.add("selected");
       el.setAttribute("data-glass", "");
       el.setAttribute("data-lg-disp", "0");
       el.title = it.url || it.src || "";
@@ -598,6 +727,7 @@
       el.style.left = (typeof it.x === "number" ? it.x : 10) + "px";
       el.style.top = (typeof it.y === "number" ? it.y : 10) + "px";
       var html = "";
+      html += '<span class="sbcheck" aria-hidden="true">✓</span>';
       if (it.type === "image" && it.src) {
         html += '<img class="thumb" alt="" referrerpolicy="no-referrer" src="' + esc(it.src) + '">';
       }
@@ -630,26 +760,40 @@
         icon.textContent = (it.title || hst || "?").trim().charAt(0).toUpperCase();
       });
 
-      el.querySelector(".del").addEventListener("click", function (ev) {
-        ev.stopPropagation();
-        delItem(it.id);
-      });
-      el.addEventListener("pointerdown", function (ev) {
-        var target = ev.target;
-        if (target && target.closest && target.closest(".del, img.thumb")) return;
-        if (ev.pointerType === "mouse" && ev.button !== 0) return;
-        beginCardDrag(ev, it, el);
-      });
-      el.addEventListener("click", function () {
+      if (!batchMode) {
+        el.querySelector(".del").addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          delItem(it.id);
+        });
+        el.addEventListener("pointerdown", function (ev) {
+          var target = ev.target;
+          if (target && target.closest && target.closest(".del, img.thumb")) return;
+          if (ev.pointerType === "mouse" && ev.button !== 0) return;
+          beginCardDrag(ev, it, el);
+        });
+      }
+      el.addEventListener("click", function (ev) {
+        if (batchMode) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          toggleSelected(it.id);
+          return;
+        }
         if (Date.now() < suppressCardClickUntil) return;
         if (it.type === "link" && it.url) openURL(it.url);
         else if (it.type === "image" && (it.url || it.src) && /^https?:/i.test(it.url || it.src)) openURL(it.url || it.src);
+      });
+      el.addEventListener("keydown", function (ev) {
+        if (!batchMode || (ev.key !== "Enter" && ev.key !== " ")) return;
+        ev.preventDefault();
+        toggleSelected(it.id);
       });
       stage.appendChild(el);
       bottom = Math.max(bottom, (it.y || 0) + el.offsetHeight + 12);
     });
     stage.style.height = bottom + "px";
     meta.textContent = visible.length === st.sidebar.length ? visible.length + " 项" : visible.length + "/" + st.sidebar.length + " 项";
+    renderBatchTools();
     contentGlass.refresh();
     CORE.restoreScroll(canvas, view);
   }
@@ -824,9 +968,11 @@
       var sameSidebar = JSON.stringify(incoming) === JSON.stringify(st.sidebar);
       st = v;
       st.sidebar = incoming;
+      pruneSelection();
       renderFocusBlock(st);
       if (sameSidebar) {
         syncMeta();
+        renderBatchTools();
         return;
       }
       render();
