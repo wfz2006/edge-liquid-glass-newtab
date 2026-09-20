@@ -19,6 +19,7 @@
   var searchQuery = "", filterType = "all";
   var focusBlockHost = null;
   var focusBlockShadow = null;
+  var sidebarMutationQueue = [], sidebarMutationBusy = false, SIDEBAR_MUTATION_MAX_ATTEMPTS = 3;
 
   function blockedForHost(sites) {
     var hostName = location.hostname.toLowerCase();
@@ -149,21 +150,104 @@
       });
     } catch (e) {}
   }
-  function mutateSidebar(mutator, done) {
+  function storageError() {
+    var runtime = typeof chrome !== "undefined" && chrome.runtime;
+    var lastError = runtime && runtime.lastError;
+    return lastError ? new Error(lastError.message || "本地存储操作失败") : null;
+  }
+  function cloneStoredState(value) {
+    try { return JSON.parse(JSON.stringify(value && typeof value === "object" ? value : {})); }
+    catch (e) { throw new Error("本地存储数据无法复制"); }
+  }
+  function storageStamp(value) { return JSON.stringify(value); }
+  function readStoredState(done) {
     try {
       chrome.storage.local.get(KEY, function (box) {
-        var latest = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
-        var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
-        var result = mutator(current);
-        latest.sidebar = result && result.changed ? result.sidebar : current;
-        st = latest;
-        if (result && result.changed) {
-          latest.updatedAt = Date.now();
-          var o = {}; o[KEY] = latest; chrome.storage.local.set(o);
-        }
-        if (typeof done === "function") done(result);
+        var error = storageError();
+        if (error) { done(null, error); return; }
+        var raw = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
+        try {
+          var state = cloneStoredState(raw);
+          done({ state: state, stamp: storageStamp(state) }, null);
+        } catch (e) { done(null, e); }
       });
-    } catch (e) {}
+    } catch (e) { done(null, e); }
+  }
+  function writeStoredState(state, done) {
+    try {
+      var payload = {}; payload[KEY] = state;
+      chrome.storage.local.set(payload, function () { done(storageError()); });
+    } catch (e) { done(e); }
+  }
+  function runSidebarMutation(mutator, done) {
+    var attempts = 0, mutationApplied = false, appliedResult = null;
+    function attempt() {
+      attempts++;
+      readStoredState(function (snapshot, readError) {
+        if (readError) { done(null, readError, snapshot && snapshot.state); return; }
+        var authoritative = snapshot.state, latest;
+        try { latest = cloneStoredState(authoritative); }
+        catch (e) { done(null, e, authoritative); return; }
+        var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
+        var result;
+        try { result = mutator(current); }
+        catch (e) { done(null, e, authoritative); return; }
+        if (!result || !result.changed) {
+          done(mutationApplied ? appliedResult : result, null, latest);
+          return;
+        }
+        latest.sidebar = result.sidebar;
+        readStoredState(function (beforeWrite, compareError) {
+          if (compareError) { done(null, compareError, authoritative); return; }
+          if (beforeWrite.stamp !== snapshot.stamp) {
+            if (attempts >= SIDEBAR_MUTATION_MAX_ATTEMPTS) {
+              done(null, new Error("本地存储在重试后仍持续变化"), beforeWrite.state);
+              return;
+            }
+            attempt();
+            return;
+          }
+          latest.updatedAt = Date.now();
+          mutationApplied = true;
+          appliedResult = result;
+          writeStoredState(latest, function (writeError) {
+            if (writeError) {
+              done(null, writeError, authoritative);
+              return;
+            }
+            readStoredState(function (afterWrite, verifyError) {
+              if (verifyError) { done(null, verifyError, authoritative); return; }
+              if (afterWrite.stamp !== storageStamp(latest)) {
+                if (attempts >= SIDEBAR_MUTATION_MAX_ATTEMPTS) {
+                  done(null, new Error("本地存储在重试后仍持续变化"), afterWrite.state);
+                  return;
+                }
+                attempt();
+                return;
+              }
+              done(result, null, afterWrite.state);
+            });
+          });
+        });
+      });
+    }
+    attempt();
+  }
+  function drainSidebarMutations() {
+    if (sidebarMutationBusy || !sidebarMutationQueue.length) return;
+    sidebarMutationBusy = true;
+    var job = sidebarMutationQueue.shift();
+    function finish(result, error, latest) {
+      if (latest) st = latest;
+      try { if (typeof job.done === "function") job.done(result, error); }
+      finally { sidebarMutationBusy = false; drainSidebarMutations(); }
+    }
+    try { runSidebarMutation(job.mutator, finish); }
+    catch (e) { finish(null, e, st); }
+  }
+  function mutateSidebar(mutator, done) {
+    sidebarMutationQueue.push({ mutator: mutator, done: done });
+    drainSidebarMutations();
   }
   function addItem(it) {
     if (!it || typeof it !== "object") return;
@@ -414,7 +498,12 @@
     mutateSidebar(function (latestSidebar) {
       var removed = CORE.removeByIds(latestSidebar, ids);
       return { sidebar: removed.items, removed: removed.removed, changed: !!removed.removed.length };
-    }, function (result) {
+    }, function (result, error) {
+      if (error) {
+        render();
+        showNotice("删除失败，已恢复最新数据");
+        return;
+      }
       if (!result || !result.removed.length) {
         selectedIds = Object.create(null);
         render();
@@ -436,7 +525,15 @@
     mutateSidebar(function (latestSidebar) {
       var restored = CORE.restoreByIds(latestSidebar, snapshot.removed);
       return { sidebar: restored, changed: restored.length !== latestSidebar.length };
-    }, function () {
+    }, function (result, error) {
+      if (error) {
+        undoSnapshot = snapshot;
+        undoTimer = setTimeout(function () { undoSnapshot = null; }, 8000);
+        render();
+        showNotice("撤销失败，已恢复最新数据");
+        return;
+      }
+      if (!result || !result.changed) { render(); return; }
       render();
       showNotice("已撤销删除");
     });

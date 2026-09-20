@@ -212,17 +212,38 @@ function createHarness(options = {}) {
     ],
     openInNew: false
   };
+  const runtime = { lastError: null };
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+  let getCalls = 0, setCalls = 0;
   const storage = {
     local: {
-      get(_key, callback) { callback({ "lg.newtab": stored }); },
-      set(value) { Object.assign(stored, value["lg.newtab"]); }
+      get(_key, callback) {
+        const getCall = getCalls++;
+        if (typeof options.beforeGet === "function") options.beforeGet(stored, getCall);
+        const snapshot = clone(stored);
+        callback({ "lg.newtab": snapshot });
+      },
+      set(value, callback) {
+        if (options.failNextSet) {
+          const error = options.failNextSet;
+          options.failNextSet = null;
+          runtime.lastError = { message: error.message || String(error) };
+          if (callback) callback();
+          runtime.lastError = null;
+          return;
+        }
+        Object.assign(stored, clone(value["lg.newtab"]));
+        const call = setCalls++;
+        if (typeof options.afterSet === "function") options.afterSet(stored, call);
+        if (callback) callback();
+      }
     },
     onChanged: { addListener() {} }
   };
   const sandbox = {
     window,
     document,
-    chrome: { storage },
+    chrome: { storage, runtime },
     location: window.location,
     URL,
     getComputedStyle() { return { borderTopLeftRadius: "0px" }; },
@@ -245,7 +266,8 @@ function createHarness(options = {}) {
     shadowMode: document.lastShadowMode,
     hook: document.documentElement.__lgCollect,
     storageState: stored,
-    storage
+    storage,
+    runtime
   };
 }
 
@@ -276,6 +298,13 @@ function renderedCards() { return shadow.querySelectorAll(".sbcard"); }
 function renderedCard(id) {
   return renderedCards().find((card) => card.getAttribute("data-id") === id);
 }
+
+let clonedSnapshot;
+harness.storage.local.get("lg.newtab", (box) => { clonedSnapshot = box["lg.newtab"]; });
+clonedSnapshot.sidebar[0].title = "只改读取快照";
+let rereadSnapshot;
+harness.storage.local.get("lg.newtab", (box) => { rereadSnapshot = box["lg.newtab"]; });
+assert.strictEqual(rereadSnapshot.sidebar[0].title, "构造器", "storage.get should return cloned snapshots");
 
 hook.open();
 const ordinaryCard = renderedCard("constructor");
@@ -364,5 +393,48 @@ assert.deepStrictEqual(state.sidebarIds, ["constructor", "toString", "note-1", "
 assert.strictEqual(state.undoAvailable, false);
 assert.strictEqual(harness.storageState.extraState.keep, true, "batch mutation should preserve unrelated latest state fields");
 assert.strictEqual(harness.storageState.sidebar.find((item) => item.id === "note-1").title, "edited elsewhere", "undo should not overwrite an edit made by the other surface");
+
+const conflictHarness = createHarness({
+  contentTest: true,
+  beforeGet: (storedState, call) => {
+    if (call === 1) {
+      storedState.concurrentTopLevel = { keep: true };
+      storedState.sidebar.push({ id: "between-reads", type: "text", title: "两次读取之间新增", text: "保留" });
+    }
+  }
+});
+const conflictTest = conflictHarness.hook.__test;
+conflictTest.toggleBatch();
+conflictTest.toggleSelected("constructor");
+conflictTest.deleteSelected();
+assert.deepStrictEqual(Array.from(conflictTest.state().sidebarIds), ["toString", "note-1", "between-reads"], "retry should reapply deletion to the latest sidebar");
+assert.deepStrictEqual(conflictHarness.storageState.concurrentTopLevel, { keep: true }, "retry should preserve a top-level write between reads");
+
+const failedHarness = createHarness({ contentTest: true });
+const failedTest = failedHarness.hook.__test;
+failedTest.toggleBatch();
+failedTest.toggleSelected("constructor");
+failedHarness.storage.local.set = function (_value, callback) {
+  failedHarness.runtime.lastError = { message: "模拟写入失败" };
+  if (callback) callback();
+  failedHarness.runtime.lastError = null;
+};
+failedTest.deleteSelected();
+assert.ok(failedTest.state().sidebarIds.includes("constructor"), "set error should leave the persisted authoritative item visible");
+assert.strictEqual(failedTest.state().undoAvailable, false, "set error should not create an undo success state");
+assert.match(failedHarness.shadow.querySelector(".notice-text").textContent, /删除失败/, "set error should show a failure notice");
+
+const failedGetHarness = createHarness({ contentTest: true });
+const failedGetTest = failedGetHarness.hook.__test;
+failedGetTest.toggleBatch();
+failedGetTest.toggleSelected("constructor");
+failedGetHarness.storage.local.get = function (_key, callback) {
+  failedGetHarness.runtime.lastError = { message: "模拟读取失败" };
+  if (callback) callback({});
+  failedGetHarness.runtime.lastError = null;
+};
+failedGetTest.deleteSelected();
+assert.ok(failedGetTest.state().sidebarIds.includes("constructor"), "get error should leave the local authoritative view unchanged");
+assert.match(failedGetHarness.shadow.querySelector(".notice-text").textContent, /删除失败/, "get error should show a failure notice");
 
 console.log("content-batch-runtime: Escape, selection, latest-state delete/undo, focus, and visible-only select-all passed");

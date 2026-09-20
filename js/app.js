@@ -1684,6 +1684,7 @@
   var sbOpenState = false, sbCloseTimer = 0;
   var sbQuery = "", sbFilter = "all";
   var sbBatchMode = false, sbSelected = Object.create(null), sbUndo = null, sbUndoTimer = 0;
+  var sbMutationQueue = [], sbMutationBusy = false, SB_MUTATION_MAX_ATTEMPTS = 3;
 
   function sbVisibleItems() {
     return S.sidebar.filter(function (item) { return SB_CORE.matches(item, sbQuery, sbFilter); });
@@ -1722,36 +1723,119 @@
     renderSidebar();
   }
 
-  /* 批量变更专用：在写入前重新读取本地状态，只替换最新 sidebar。 */
-  function mutateSidebar(mutator, done) {
-    function finish(result, latest) {
-      if (latest) {
-        S.sidebar = latest.sidebar;
-        if (latest.updatedAt) S.updatedAt = latest.updatedAt;
-      }
-      if (typeof done === "function") done(result);
-    }
+  /* 批量变更专用：每页串行执行，并在写后比较完整快照以发现并发覆盖。 */
+  function sbStorageError() {
+    var runtime = typeof chrome !== "undefined" && chrome.runtime;
+    var lastError = runtime && runtime.lastError;
+    return lastError ? new Error(lastError.message || "本地存储操作失败") : null;
+  }
+  function sbClone(value) {
+    try { return JSON.parse(JSON.stringify(value && typeof value === "object" ? value : {})); }
+    catch (e) { throw new Error("本地存储数据无法复制"); }
+  }
+  function sbStamp(value) { return JSON.stringify(value); }
+  function sbReadStored(done) {
+    try {
+      chrome.storage.local.get(KEY, function (box) {
+        var error = sbStorageError();
+        if (error) { done(null, error); return; }
+        var raw = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
+        try {
+          var state = sbClone(raw);
+          done({ state: state, stamp: sbStamp(state) }, null);
+        } catch (e) { done(null, e); }
+      });
+    } catch (e) { done(null, e); }
+  }
+  function sbWriteStored(state, done) {
+    try {
+      var payload = {}; payload[KEY] = state;
+      chrome.storage.local.set(payload, function () { done(sbStorageError()); });
+    } catch (e) { done(e); }
+  }
+  function runSidebarMutation(mutator, done) {
     if (!HAS_CHROME) {
-      var localResult = mutator(S.sidebar);
-      if (localResult && localResult.changed) {
-        S.sidebar = localResult.sidebar;
-        store.save({ sidebar: S.sidebar });
-      }
-      finish(localResult, S);
+      try {
+        var localResult = mutator(S.sidebar);
+        if (localResult && localResult.changed) {
+          S.sidebar = localResult.sidebar;
+          store.save({ sidebar: S.sidebar });
+        }
+        done(localResult, null, S);
+      } catch (e) { done(null, e, S); }
       return;
     }
-    chrome.storage.local.get(KEY, function (box) {
-      var latest = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
-      var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
-      var result = mutator(current);
-      latest.sidebar = result && result.changed ? result.sidebar : current;
-      if (result && result.changed) {
-        latest.updatedAt = Date.now();
-        var payload = {}; payload[KEY] = latest;
-        chrome.storage.local.set(payload, noop);
+    var attempts = 0, mutationApplied = false, appliedResult = null;
+    function attempt() {
+      attempts++;
+      sbReadStored(function (snapshot, readError) {
+        if (readError) { done(null, readError, snapshot && snapshot.state); return; }
+        var authoritative = snapshot.state, latest;
+        try { latest = sbClone(authoritative); }
+        catch (e) { done(null, e, authoritative); return; }
+        var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
+        var result;
+        try { result = mutator(current); }
+        catch (e) { done(null, e, authoritative); return; }
+        if (!result || !result.changed) {
+          done(mutationApplied ? appliedResult : result, null, latest);
+          return;
+        }
+        latest.sidebar = result.sidebar;
+        sbReadStored(function (beforeWrite, compareError) {
+          if (compareError) { done(null, compareError, authoritative); return; }
+          if (beforeWrite.stamp !== snapshot.stamp) {
+            if (attempts >= SB_MUTATION_MAX_ATTEMPTS) {
+              done(null, new Error("本地存储在重试后仍持续变化"), beforeWrite.state);
+              return;
+            }
+            attempt();
+            return;
+          }
+          latest.updatedAt = Date.now();
+          mutationApplied = true;
+          appliedResult = result;
+          sbWriteStored(latest, function (writeError) {
+            if (writeError) {
+              done(null, writeError, authoritative);
+              return;
+            }
+            sbReadStored(function (afterWrite, verifyError) {
+              if (verifyError) { done(null, verifyError, authoritative); return; }
+              if (afterWrite.stamp !== sbStamp(latest)) {
+                if (attempts >= SB_MUTATION_MAX_ATTEMPTS) {
+                  done(null, new Error("本地存储在重试后仍持续变化"), afterWrite.state);
+                  return;
+                }
+                attempt();
+                return;
+              }
+              done(result, null, afterWrite.state);
+            });
+          });
+        });
+      });
+    }
+    attempt();
+  }
+  function drainSidebarMutations() {
+    if (sbMutationBusy || !sbMutationQueue.length) return;
+    sbMutationBusy = true;
+    var job = sbMutationQueue.shift();
+    function finish(result, error, latest) {
+      if (latest) {
+        S.sidebar = Array.isArray(latest.sidebar) ? latest.sidebar : [];
+        if (latest.updatedAt) S.updatedAt = latest.updatedAt;
       }
-      finish(result, latest);
-    });
+      try { if (typeof job.done === "function") job.done(result, error); }
+      finally { sbMutationBusy = false; drainSidebarMutations(); }
+    }
+    try { runSidebarMutation(job.mutator, finish); }
+    catch (e) { finish(null, e, S); }
+  }
+  function mutateSidebar(mutator, done) {
+    sbMutationQueue.push({ mutator: mutator, done: done });
+    drainSidebarMutations();
   }
 
   function sbExtent() {
@@ -2218,7 +2302,13 @@
     mutateSidebar(function (latestSidebar) {
       var removed = SB_CORE.removeByIds(latestSidebar, ids);
       return { sidebar: removed.items, removed: removed.removed, changed: !!removed.removed.length };
-    }, function (result) {
+    }, function (result, error) {
+      if (error) {
+        sbPruneSelection();
+        renderSidebar();
+        toast("删除失败，已恢复最新数据");
+        return;
+      }
       if (!result || !result.removed.length) { sbSelected = Object.create(null); renderSidebar(); return; }
       sbUndo = { removed: result.removed };
       clearTimeout(sbUndoTimer);
@@ -2236,7 +2326,15 @@
     mutateSidebar(function (latestSidebar) {
       var restored = SB_CORE.restoreByIds(latestSidebar, snapshot.removed);
       return { sidebar: restored, changed: restored.length !== latestSidebar.length };
-    }, function () {
+    }, function (result, error) {
+      if (error) {
+        sbUndo = snapshot;
+        sbUndoTimer = setTimeout(function () { sbUndo = null; }, 8000);
+        renderSidebar();
+        toast("撤销失败，已恢复最新数据");
+        return;
+      }
+      if (!result || !result.changed) { renderSidebar(); return; }
       renderSidebar();
       toast("已撤销删除");
     });
