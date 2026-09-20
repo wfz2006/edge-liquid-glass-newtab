@@ -1691,6 +1691,16 @@
   function sbSelectedItems() {
     return S.sidebar.filter(function (item) { return !!sbSelected[item.id]; });
   }
+  function sbFocusCard(id) {
+    if (!id) return;
+    var cards = $("sbCanvas").querySelectorAll(".sbcard");
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].getAttribute("data-id") === String(id)) {
+        if (typeof cards[i].focus === "function") cards[i].focus();
+        return;
+      }
+    }
+  }
   function sbPruneSelection() {
     var live = Object.create(null);
     S.sidebar.forEach(function (item) { if (item && sbSelected[item.id]) live[item.id] = true; });
@@ -1701,6 +1711,7 @@
     if (sbSelected[id]) delete sbSelected[id];
     else sbSelected[id] = true;
     renderSidebar();
+    sbFocusCard(id);
   }
   function sbSelectVisible() {
     sbVisibleItems().forEach(function (item) { if (item.id) sbSelected[item.id] = true; });
@@ -1709,6 +1720,38 @@
   function sbClearSelection() {
     sbSelected = Object.create(null);
     renderSidebar();
+  }
+
+  /* 批量变更专用：在写入前重新读取本地状态，只替换最新 sidebar。 */
+  function mutateSidebar(mutator, done) {
+    function finish(result, latest) {
+      if (latest) {
+        S.sidebar = latest.sidebar;
+        if (latest.updatedAt) S.updatedAt = latest.updatedAt;
+      }
+      if (typeof done === "function") done(result);
+    }
+    if (!HAS_CHROME) {
+      var localResult = mutator(S.sidebar);
+      if (localResult && localResult.changed) {
+        S.sidebar = localResult.sidebar;
+        store.save({ sidebar: S.sidebar });
+      }
+      finish(localResult, S);
+      return;
+    }
+    chrome.storage.local.get(KEY, function (box) {
+      var latest = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
+      var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
+      var result = mutator(current);
+      latest.sidebar = result && result.changed ? result.sidebar : current;
+      if (result && result.changed) {
+        latest.updatedAt = Date.now();
+        var payload = {}; payload[KEY] = latest;
+        chrome.storage.local.set(payload, noop);
+      }
+      finish(result, latest);
+    });
   }
 
   function sbExtent() {
@@ -2171,26 +2214,32 @@
     var chosen = sbSelectedItems();
     if (!chosen.length) { toast("请先选择收集项"); return; }
     if (!window.confirm("确定删除已选中的 " + chosen.length + " 项收集内容？")) return;
-    var removed = SB_CORE.removeByIds(S.sidebar, Object.keys(sbSelected));
-    if (!removed.removed.length) { sbSelected = Object.create(null); renderSidebar(); return; }
-    sbUndo = { removed: removed.removed };
-    clearTimeout(sbUndoTimer);
-    S.sidebar = removed.items;
-    sbSelected = Object.create(null);
-    store.save({ sidebar: S.sidebar });
-    renderSidebar();
-    toast("已删除 " + removed.removed.length + " 项", sbUndoDelete);
-    sbUndoTimer = setTimeout(function () { sbUndo = null; }, 8000);
+    var ids = Object.keys(sbSelected);
+    mutateSidebar(function (latestSidebar) {
+      var removed = SB_CORE.removeByIds(latestSidebar, ids);
+      return { sidebar: removed.items, removed: removed.removed, changed: !!removed.removed.length };
+    }, function (result) {
+      if (!result || !result.removed.length) { sbSelected = Object.create(null); renderSidebar(); return; }
+      sbUndo = { removed: result.removed };
+      clearTimeout(sbUndoTimer);
+      sbSelected = Object.create(null);
+      renderSidebar();
+      toast("已删除 " + result.removed.length + " 项", sbUndoDelete);
+      sbUndoTimer = setTimeout(function () { sbUndo = null; }, 8000);
+    });
   }
   function sbUndoDelete() {
     if (!sbUndo) return;
     var snapshot = sbUndo;
     sbUndo = null;
     clearTimeout(sbUndoTimer);
-    S.sidebar = SB_CORE.restoreByIds(S.sidebar, snapshot.removed);
-    store.save({ sidebar: S.sidebar });
-    renderSidebar();
-    toast("已撤销删除");
+    mutateSidebar(function (latestSidebar) {
+      var restored = SB_CORE.restoreByIds(latestSidebar, snapshot.removed);
+      return { sidebar: restored, changed: restored.length !== latestSidebar.length };
+    }, function () {
+      renderSidebar();
+      toast("已撤销删除");
+    });
   }
 
   function initSb() {

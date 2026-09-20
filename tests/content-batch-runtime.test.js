@@ -64,6 +64,9 @@ class StubElement {
   addEventListener(type, listener) {
     (this.listeners[type] || (this.listeners[type] = [])).push(listener);
   }
+  focus() {
+    if (this.ownerDocument) this.ownerDocument.activeElement = this;
+  }
   removeEventListener(type, listener) {
     this.listeners[type] = (this.listeners[type] || []).filter((entry) => entry !== listener);
   }
@@ -212,7 +215,7 @@ function createHarness(options = {}) {
   const storage = {
     local: {
       get(_key, callback) { callback({ "lg.newtab": stored }); },
-      set(value) { stored.sidebar = value["lg.newtab"].sidebar; }
+      set(value) { Object.assign(stored, value["lg.newtab"]); }
     },
     onChanged: { addListener() {} }
   };
@@ -240,7 +243,9 @@ function createHarness(options = {}) {
     shadow: document.lastClosedShadow,
     shadowHost: document.lastClosedShadowHost,
     shadowMode: document.lastShadowMode,
-    hook: document.documentElement.__lgCollect
+    hook: document.documentElement.__lgCollect,
+    storageState: stored,
+    storage
   };
 }
 
@@ -291,15 +296,18 @@ card.dispatchEvent(batchClick);
 assert.strictEqual(batchClick.defaultPrevented, true, "batch card click should prevent normal link opening");
 assert.strictEqual(bubbledBatchClick, false, "batch card click should stop propagation at the card");
 assert.deepStrictEqual(readState().selectedIds, ["constructor"], "batch card click should select through the rendered card path");
+assert.strictEqual(document.activeElement.getAttribute("data-id"), "constructor", "batch card click should restore focus by stable id");
 
 card = renderedCard("toString");
 const enter = { type: "keydown", key: "Enter" };
 card.dispatchEvent(enter);
 assert.strictEqual(enter.defaultPrevented, true, "Enter should prevent the normal card action in batch mode");
+assert.strictEqual(document.activeElement.getAttribute("data-id"), "toString", "Enter should restore focus by stable id");
 card = renderedCard("note-1");
 const space = { type: "keydown", key: " " };
 card.dispatchEvent(space);
 assert.strictEqual(space.defaultPrevented, true, "Space should prevent the normal card action in batch mode");
+assert.strictEqual(document.activeElement.getAttribute("data-id"), "note-1", "Space should restore focus by stable id");
 assert.deepStrictEqual(readState().selectedIds, ["constructor", "toString", "note-1"], "Enter and Space should select through rendered card paths");
 
 renderedCards().forEach((batchCard) => {
@@ -338,14 +346,23 @@ assert.deepStrictEqual(state.visibleIds, []);
 assert.strictEqual(state.selectAllDisabled, true, "select-all should disable when no items are visible");
 
 test.setFilter("all");
+const latestBeforeDelete = harness.storageState;
+latestBeforeDelete.extraState = { keep: true };
+latestBeforeDelete.sidebar.push({ id: "added-before-delete", type: "text", title: "抢先新增", text: "删除前另一端新增" });
 test.deleteSelected();
 state = readState();
-assert.deepStrictEqual(state.sidebarIds, ["note-1"], "delete should use the content-side CORE removal path");
+assert.deepStrictEqual(state.sidebarIds, ["note-1", "added-before-delete"], "delete should apply selected ids to the latest sidebar");
 assert.strictEqual(state.undoAvailable, true);
 
+const latest = harness.storageState;
+latest.sidebar[0].title = "edited elsewhere";
+latest.sidebar[0].text = "另一端编辑";
+latest.sidebar.push({ id: "added-elsewhere", type: "text", title: "新增", text: "另一端新增" });
 test.undoDelete();
 state = readState();
-assert.deepStrictEqual(state.sidebarIds, ["constructor", "toString", "note-1"], "undo should restore deleted items and order");
+assert.deepStrictEqual(state.sidebarIds, ["constructor", "toString", "note-1", "added-before-delete", "added-elsewhere"], "undo should merge against latest sidebar without losing unrelated items");
 assert.strictEqual(state.undoAvailable, false);
+assert.strictEqual(harness.storageState.extraState.keep, true, "batch mutation should preserve unrelated latest state fields");
+assert.strictEqual(harness.storageState.sidebar.find((item) => item.id === "note-1").title, "edited elsewhere", "undo should not overwrite an edit made by the other surface");
 
-console.log("content-batch-runtime: Escape, selection, visible-only select-all, delete, and undo passed");
+console.log("content-batch-runtime: Escape, selection, latest-state delete/undo, focus, and visible-only select-all passed");

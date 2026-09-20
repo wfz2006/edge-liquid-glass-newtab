@@ -149,6 +149,22 @@
       });
     } catch (e) {}
   }
+  function mutateSidebar(mutator, done) {
+    try {
+      chrome.storage.local.get(KEY, function (box) {
+        var latest = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
+        var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
+        var result = mutator(current);
+        latest.sidebar = result && result.changed ? result.sidebar : current;
+        st = latest;
+        if (result && result.changed) {
+          latest.updatedAt = Date.now();
+          var o = {}; o[KEY] = latest; chrome.storage.local.set(o);
+        }
+        if (typeof done === "function") done(result);
+      });
+    } catch (e) {}
+  }
   function addItem(it) {
     if (!it || typeof it !== "object") return;
     it = CORE.normalizeItem(it, uid());
@@ -360,6 +376,7 @@
     if (selectedIds[id] === true) delete selectedIds[id];
     else selectedIds[id] = true;
     render();
+    focusCard(id);
   }
   function selectVisible() {
     visibleItems().forEach(function (item) {
@@ -370,6 +387,16 @@
   function clearSelection() {
     selectedIds = Object.create(null);
     render();
+  }
+  function focusCard(id) {
+    if (!id) return;
+    var cards = canvas.querySelectorAll(".sbcard");
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].getAttribute("data-id") === String(id)) {
+        if (typeof cards[i].focus === "function") cards[i].focus();
+        return;
+      }
+    }
   }
   function showNotice(message, action) {
     clearTimeout(noticeTimer);
@@ -383,30 +410,36 @@
     var chosen = selectedItems();
     if (!chosen.length) { showNotice("请先选择收集项"); return; }
     if (!window.confirm("确定删除已选中的 " + chosen.length + " 项收集内容？")) return;
-    var removed = CORE.removeByIds(st.sidebar, Object.keys(selectedIds));
-    if (!removed.removed.length) {
+    var ids = Object.keys(selectedIds);
+    mutateSidebar(function (latestSidebar) {
+      var removed = CORE.removeByIds(latestSidebar, ids);
+      return { sidebar: removed.items, removed: removed.removed, changed: !!removed.removed.length };
+    }, function (result) {
+      if (!result || !result.removed.length) {
+        selectedIds = Object.create(null);
+        render();
+        return;
+      }
+      undoSnapshot = { removed: result.removed };
+      clearTimeout(undoTimer);
       selectedIds = Object.create(null);
       render();
-      return;
-    }
-    undoSnapshot = { removed: removed.removed };
-    clearTimeout(undoTimer);
-    st.sidebar = removed.items;
-    selectedIds = Object.create(null);
-    saveSidebar();
-    render();
-    showNotice("已删除 " + removed.removed.length + " 项", undoDelete);
-    undoTimer = setTimeout(function () { undoSnapshot = null; }, 8000);
+      showNotice("已删除 " + result.removed.length + " 项", undoDelete);
+      undoTimer = setTimeout(function () { undoSnapshot = null; }, 8000);
+    });
   }
   function undoDelete() {
     if (!undoSnapshot) return;
     var snapshot = undoSnapshot;
     undoSnapshot = null;
     clearTimeout(undoTimer);
-    st.sidebar = CORE.restoreByIds(st.sidebar, snapshot.removed);
-    saveSidebar();
-    render();
-    showNotice("已撤销删除");
+    mutateSidebar(function (latestSidebar) {
+      var restored = CORE.restoreByIds(latestSidebar, snapshot.removed);
+      return { sidebar: restored, changed: restored.length !== latestSidebar.length };
+    }, function () {
+      render();
+      showNotice("已撤销删除");
+    });
   }
   function leaveBatchMode() {
     if (!batchMode) return false;
