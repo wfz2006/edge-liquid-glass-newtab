@@ -30,6 +30,10 @@
       src: typeof x.src === "string" ? x.src : "",
       text: typeof x.text === "string" ? x.text.slice(0, 2000) : "",
       tags: cleanTags(x.tags),
+      savedAt: typeof x.savedAt === "number" && isFinite(x.savedAt) ? x.savedAt : Date.now(),
+      readState: ["inbox", "later", "done", "snoozed"].indexOf(x.readState) >= 0 ? x.readState : "inbox",
+      pinned: !!x.pinned,
+      sceneId: typeof x.sceneId === "string" ? x.sceneId.slice(0, 40) : "",
       x: (typeof x.x === "number" && isFinite(x.x)) ? x.x : 10,
       y: (typeof x.y === "number" && isFinite(x.y)) ? x.y : 10,
       z: z

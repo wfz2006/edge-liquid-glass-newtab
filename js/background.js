@@ -38,8 +38,13 @@
       src: typeof x.src === "string" ? x.src : "",
       text: typeof x.text === "string" ? x.text.slice(0, 2000) : "",
       tags: cleanTags(x.tags),
+      savedAt: typeof x.savedAt === "number" && isFinite(x.savedAt) ? x.savedAt : Date.now(),
+      readState: ["inbox", "later", "done", "snoozed"].indexOf(x.readState) >= 0 ? x.readState : "inbox",
+      pinned: !!x.pinned,
+      sceneId: typeof x.sceneId === "string" ? x.sceneId.slice(0, 40) : "",
       x: typeof x.x === "number" && isFinite(x.x) ? x.x : 10,
-      y: typeof x.y === "number" && isFinite(x.y) ? x.y : 10
+      y: typeof x.y === "number" && isFinite(x.y) ? x.y : 10,
+      z: typeof x.z === "number" && isFinite(x.z) ? Math.max(0, Math.floor(x.z)) : 0
     };
   }
 
@@ -69,14 +74,19 @@
       var state = box && box[KEY] && typeof box[KEY] === "object" ? box[KEY] : {};
       var items = Array.isArray(state.sidebar) ? state.sidebar.slice(0, 200).map(normalizeItem) : [];
       var next = normalizeItem(item);
+      if (!next.sceneId) next.sceneId = typeof state.activePage === "string" ? state.activePage : "";
       if (next.type === "link" && hasLink(items, next.url)) {
         if (callback) callback(false);
         return;
       }
-      var bottom = 10;
-      items.forEach(function (x) { bottom = Math.max(bottom, (x.y || 0) + 110); });
+      var bottom = 10, topZ = 0;
+      items.forEach(function (x) {
+        bottom = Math.max(bottom, (x.y || 0) + 110);
+        topZ = Math.max(topZ, x.z || 0);
+      });
       next.x = 10;
       next.y = bottom;
+      next.z = topZ + 1;
       items.push(next);
       state.sidebar = items;
       state.updatedAt = Date.now();
@@ -93,6 +103,14 @@
     try { copy = JSON.parse(JSON.stringify(state || {})); } catch (e) { return null; }
     if (copy.syncEnabled === false) return null;
     if (copy.wall) copy.wall.fileData = "";
+    if (copy.wall && Array.isArray(copy.wall.library)) {
+      copy.wall.library = copy.wall.library.map(function (w) {
+        if (!w || !/^data:/i.test(w.data || "")) return w;
+        var c = {};
+        Object.keys(w).forEach(function (k) { if (k !== "data") c[k] = w[k]; });
+        return c;
+      });
+    }
     if (Array.isArray(copy.sidebar)) {
       copy.sidebar = copy.sidebar.map(function (x) {
         if (!x || x.type !== "image" || !/^data:image\//i.test(x.src || "")) return x;
@@ -103,10 +121,9 @@
     }
     var raw;
     try { raw = JSON.stringify(copy); } catch (e2) { return null; }
-    if (syncBytes(raw) > MAX_SYNC_BYTES) {
-      copy.sidebar = [];
-      try { raw = JSON.stringify(copy); } catch (e3) { return null; }
-    }
+    /* Quota overflow must fail closed: publishing an empty sidebar would
+       make a newer remote snapshot capable of hiding the user's cards. */
+    if (syncBytes(raw) > MAX_SYNC_BYTES) return null;
     return syncBytes(raw) <= MAX_SYNC_BYTES ? copy : null;
   }
 

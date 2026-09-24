@@ -12,12 +12,12 @@
 
   /* ---------------- 常量表 ---------------- */
   var WALLS = [
-    { id: "aurora", name: "极光", css: "linear-gradient(125deg,#241159 0%,#3a53c9 26%,#2fa2e0 44%,#8a5fd8 60%,#f0705c 78%,#ffd08a 100%)" },
-    { id: "dusk",   name: "暮色", css: "linear-gradient(140deg,#0f1b3d 0%,#3b2a6b 30%,#8a3f7d 58%,#e8683f 82%,#ffc978 100%)" },
-    { id: "mint",   name: "薄荷", css: "linear-gradient(135deg,#062b33 0%,#0f6f6b 34%,#39b98d 58%,#a8dc7a 82%,#f4f0a4 100%)" },
-    { id: "peach",  name: "蜜桃", css: "linear-gradient(130deg,#3a1140 0%,#8e2f6b 32%,#e0526f 58%,#ff9a68 80%,#ffd9a0 100%)" },
-    { id: "steel",  name: "钢蓝", css: "linear-gradient(150deg,#0a1220 0%,#1d3557 34%,#457b9d 62%,#a8c8dd 88%,#e8f0f5 100%)" },
-    { id: "ink",    name: "子夜", css: "linear-gradient(160deg,#0b0f18 0%,#1d2340 34%,#3b2f63 62%,#6d3f6b 84%,#b05a63 100%)" }
+    { id: "aurora", name: "樱色流星", css: 'url("assets/wallpapers/sunset-dreamer.webp")', preview: 'url("assets/wallpapers/previews/sunset-dreamer.webp")' },
+    { id: "dusk",   name: "富士武士", css: 'url("assets/wallpapers/samurai-at-fuji.webp")', preview: 'url("assets/wallpapers/previews/samurai-at-fuji.webp")' },
+    { id: "mint",   name: "雨城漫步", css: 'url("assets/wallpapers/rain-city.jpg")', preview: 'url("assets/wallpapers/previews/rain-city.webp")' },
+    { id: "peach",  name: "冬日魔法", css: 'url("assets/wallpapers/winter-magic.jpg")', preview: 'url("assets/wallpapers/previews/winter-magic.webp")' },
+    { id: "steel",  name: "秋树约会", css: 'url("assets/wallpapers/autumn-rendezvous.jpg")', preview: 'url("assets/wallpapers/previews/autumn-rendezvous.webp")' },
+    { id: "ink",    name: "魔女工坊", css: 'url("assets/wallpapers/witch-workshop.jpg")', preview: 'url("assets/wallpapers/previews/witch-workshop.webp")' }
   ];
   var ENGINES = [
     { id: "bing",   name: "Bing",       url: "https://www.bing.com/search?q=" },
@@ -51,6 +51,7 @@
   ];
   var DEFAULT_SEED_VERSION = 2;
   var WIDGET_KEYS = ["cal", "todo", "note", "cd"];
+  var WIDGET_LABELS = { cal: "日历", todo: "待办", note: "便签", cd: "倒数日" };
   var DEFAULT_PAGES = [
     { id: "common", name: "常用", items: [
       ["百度", "https://www.baidu.com"], ["Bing", "https://www.bing.com"],
@@ -104,23 +105,29 @@
   function defaultPages() {
     return DEFAULT_PAGES.map(function (p) {
       return {
-        id: p.id,
-        name: p.name,
-        items: p.items.map(function (x, i) { return { id: "sc-" + p.id + "-" + i, n: x[0], u: x[1], folder: "", tags: [] }; }),
-        cal: p.id === "common" ? { x: 0, y: 0 } : null,
-        todo: p.id === "common" ? { x: 0, y: 0 } : null,
-        widgetOrder: WIDGET_KEYS.slice()
+      id: p.id,
+      name: p.name,
+      items: p.items.map(function (x, i) { return { id: "sc-" + p.id + "-" + i, n: x[0], u: x[1], folder: "", tags: [], pos: { x: 0, y: 0, z: 0 } }; }),
+      cal: p.id === "common" ? { x: 0, y: 0 } : null,
+      todo: p.id === "common" ? { x: 0, y: 0 } : null,
+      widgetOrder: WIDGET_KEYS.slice(),
+      tileSize: "medium"
       };
     });
   }
   var G0 = { band: 0.16, str: 0.22, disp: 1 };
+  var GLASS_PRESETS = {
+    clear: { band: 0.14, str: 0.28, disp: 1.25 },
+    balanced: { band: 0.16, str: 0.22, disp: 1 },
+    readable: { band: 0.12, str: 0.15, disp: 0.55 }
+  };
 
   /* ---------------- 状态与存储 ---------------- */
   var HAS_CHROME = (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local);
   var HAS_FAVICON = HAS_CHROME && typeof chrome.runtime !== "undefined" && !!chrome.runtime.getURL;
   var KEY = "lg.newtab";
   var SYNC_KEY = "lg.newtab.sync";
-  var STATE_VERSION = 5;
+  var STATE_VERSION = 7;
   var MAX_INLINE_IMAGE_BYTES = 10 * 1024 * 1024;
   var SB_CORE = window.LGCollection;
   var S = null;
@@ -135,6 +142,8 @@
   var syncLoaded = false;
   var shortcutBatch = false;
   var selectedShortcuts = {};
+  var layoutEdit = false, layoutUndoSnapshot = null, tileActionMenu = null;
+  var discoveryCurrent = null, discoverySeen = Object.create(null), sbStatusFilter = "all";
 
   var DEFAULT_QUOTES = [
     "把复杂的事情拆成今天能完成的一小步。",
@@ -182,7 +191,7 @@
       weatherCities: CITIES.map(function (c) { return { id: cityId(c), n: c.n, lat: c.lat, lon: c.lon, source: "preset" }; }),
       weatherActiveId: cityId(CITIES[0]),
       openInNew: false,
-      wall: { mode: "preset", id: "aurora", url: "", fileData: "", fileType: "", rotation: "off", customCss: "", fontUrl: "", fontFamily: "" },
+      wall: { mode: "preset", id: "aurora", url: "", fileData: "", fileType: "", rotation: "off", customCss: "", fontUrl: "", fontFamily: "", library: [], activeId: "" },
       syncEnabled: true,
       updatedAt: 0,
       productivity: {
@@ -193,7 +202,7 @@
         blockedSites: []
       },
       tex: 1,
-      glass: { band: G0.band, str: G0.str, disp: G0.disp },
+      glass: { profile: "balanced", band: G0.band, str: G0.str, disp: G0.disp },
       drops: true,
       layout: { search: { x: 0, y: 0 }, tiles: { x: 0, y: 0 }, todo: { x: 0, y: 0 }, weather: { x: 0, y: 0 } }
     };
@@ -228,6 +237,9 @@
       repeat: repeat,
       remind: !!x.remind,
       archived: !!x.archived,
+      sourceId: typeof x.sourceId === "string" ? x.sourceId.slice(0, 80) : "",
+      sourceUrl: /^https?:\/\//i.test(String(x.sourceUrl || "")) ? String(x.sourceUrl).slice(0, 2000) : "",
+      sceneId: typeof x.sceneId === "string" ? x.sceneId.slice(0, 40) : "",
       notifiedAt: validDate(x.notifiedAt) ? x.notifiedAt : "",
       createdAt: typeof x.createdAt === "number" ? x.createdAt : Date.now() + i
     };
@@ -276,7 +288,28 @@
     return { id: typeof x.id === "string" && x.id ? x.id : cityId({ n: n, lat: lat, lon: lon }), n: n.slice(0, 48), lat: Math.round(lat * 1000) / 1000, lon: Math.round(lon * 1000) / 1000, source: x.source === "geo" ? "geo" : (x.source || "custom") };
   }
 
-  function normalizeShortcut(x, i) {
+  /* 自定义壁纸库条目：kind=url 远端图片/GIF，kind=image 本地图片 dataURL，kind=video 本地或远端视频 */
+  var WALL_LIB_MAX = 12;
+  function normalizeWallItem(x) {
+    x = x && typeof x === "object" ? x : {};
+    var kind = x.kind === "image" || x.kind === "video" ? x.kind : "url";
+    var url = typeof x.url === "string" ? x.url.slice(0, 2000) : "";
+    var data = typeof x.data === "string" && /^(data:image\/|data:video\/)/i.test(x.data) ? x.data : "";
+    if (kind === "url" && !/^(https?:\/\/|data:image\/)/i.test(url)) return null;
+    if (kind === "video" && !url && !data) return null;
+    if (kind === "video" && url && !/^(https?:\/\/)/i.test(url)) return null;
+    if (kind === "image" && !data) return null;
+    return {
+      id: typeof x.id === "string" && x.id ? x.id : uid("wall"),
+      kind: kind,
+      url: url,
+      data: data,
+      name: String(x.name || "").slice(0, 60),
+      addedAt: typeof x.addedAt === "number" && isFinite(x.addedAt) ? x.addedAt : 0
+    };
+  }
+
+  function normalizeShortcut(x, i, preservePosition) {
     if (Array.isArray(x)) x = { n: x[0], u: x[1] };
     x = x && typeof x === "object" ? x : {};
     var url = String(x.u || x.url || "").trim();
@@ -284,12 +317,18 @@
     var rawTags = Array.isArray(x.tags) ? x.tags : String(x.tags || "").split(/[，,\s]+/);
     var tags = rawTags.map(function (tag) { return String(tag || "").trim().replace(/^#/, ""); })
       .filter(function (tag) { return !!tag; }).filter(function (tag, index, all) { return all.indexOf(tag) === index; }).slice(0, 8);
+    var pos = preservePosition && x.pos && typeof x.pos === "object" ? x.pos : {};
     return {
       id: typeof x.id === "string" && x.id ? x.id : uid("sc"),
       n: String(x.n || x.title || "").slice(0, 40),
       u: url.slice(0, 2000),
       folder: String(x.folder || "").trim().slice(0, 30),
-      tags: tags
+      tags: tags,
+      pos: {
+        x: typeof pos.x === "number" && isFinite(pos.x) ? pos.x : 0,
+        y: typeof pos.y === "number" && isFinite(pos.y) ? pos.y : 0,
+        z: typeof pos.z === "number" && isFinite(pos.z) ? pos.z : 0
+      }
     };
   }
 
@@ -312,12 +351,16 @@
 
   function normalize(o) {
     var d = defaults();
+    var preservePositions = !!(o && Number(o.stateVersion) >= STATE_VERSION);
     function normPos(v) {
       return (v && typeof v.x === "number" && typeof v.y === "number" &&
-              isFinite(v.x) && isFinite(v.y)) ? { x: v.x, y: v.y } : null;
+              isFinite(v.x) && isFinite(v.y)) ? {
+                x: v.x, y: v.y, z: typeof v.z === "number" && isFinite(v.z) ? v.z : 0
+              } : null;
     }
     function widgetPos(v) {
-      return normPos(v) ? { x: 0, y: 0 } : null;
+      var pos = normPos(v);
+      return pos ? (preservePositions ? pos : { x: 0, y: 0, z: 0 }) : null;
     }
     if (!o || typeof o !== "object") return d;
     var migrateLegacyDefaults = isUntouchedLegacyDefault(o);
@@ -327,13 +370,16 @@
         return {
           id: (typeof p.id === "string" && p.id) ? p.id : "pg" + (i + 1),
           name: (typeof p.name === "string" && p.name) ? p.name.slice(0, 12) : "页面 " + (i + 1),
-          items: (Array.isArray(p.items) ? p.items : []).map(normalizeShortcut).filter(function (x) { return !!x; }).slice(0, 60),
+          items: (Array.isArray(p.items) ? p.items : []).map(function (item, index) {
+            return normalizeShortcut(item, index, preservePositions);
+          }).filter(function (x) { return !!x; }).slice(0, 60),
           /* 小组件按页可选：显式给出才显示；便签文本始终保留 */
           cal: widgetPos(p.cal),
           todo: widgetPos(p.todo),
           note: widgetPos(p.note),
           cd: widgetPos(p.cd),
           widgetOrder: normalizeWidgetOrder(p.widgetOrder),
+          tileSize: ["small", "medium", "large"].indexOf(p.tileSize) >= 0 ? p.tileSize : "medium",
           noteText: (typeof p.noteText === "string") ? p.noteText.slice(0, 2000) : ""
         };
       }).filter(function (p) { return !!p; });
@@ -342,7 +388,9 @@
       /* 旧版单页数据迁移 */
       d.pages = [{
         id: "home", name: "首页",
-        items: o.shortcuts.map(normalizeShortcut).filter(function (x) { return !!x; })
+        items: o.shortcuts.map(function (item, index) {
+          return normalizeShortcut(item, index, preservePositions);
+        }).filter(function (x) { return !!x; })
       }];
     }
     /* 一次性迁移：日历从"每页都有"改为"可选小组件"——只保留第一页的 */
@@ -428,11 +476,29 @@
         rotation: ["off", "5m", "15m", "1h"].indexOf(o.wall.rotation) >= 0 ? o.wall.rotation : "off",
         customCss: typeof o.wall.customCss === "string" ? o.wall.customCss.slice(0, 12000) : "",
         fontUrl: typeof o.wall.fontUrl === "string" ? o.wall.fontUrl.slice(0, 1000) : "",
-        fontFamily: typeof o.wall.fontFamily === "string" ? o.wall.fontFamily.slice(0, 60) : ""
+        fontFamily: typeof o.wall.fontFamily === "string" ? o.wall.fontFamily.slice(0, 60) : "",
+        library: Array.isArray(o.wall.library) ? o.wall.library.map(normalizeWallItem).filter(function (x) { return !!x; }).slice(0, WALL_LIB_MAX) : [],
+        activeId: typeof o.wall.activeId === "string" ? o.wall.activeId : ""
       };
+      /* 老版本只有单个 url / fileData：迁入壁纸库，保持正在用的那张不断 */
+      if (!d.wall.library.length) {
+        if (d.wall.url) {
+          var legacyUrl = normalizeWallItem({ kind: /\.(?:mp4|webm|ogg)(?:[?#].*)?$/i.test(d.wall.url) ? "video" : "url", url: d.wall.url, name: hostOf(d.wall.url) || d.wall.url, addedAt: 1 });
+          if (legacyUrl) d.wall.library.push(legacyUrl);
+        }
+        if (d.wall.fileData) {
+          var legacyFile = normalizeWallItem({ kind: /^data:video\//i.test(d.wall.fileData) ? "video" : "image", data: d.wall.fileData, name: "本地壁纸", addedAt: 2 });
+          if (legacyFile) d.wall.library.push(legacyFile);
+        }
+      }
+      if (["url", "video", "local"].indexOf(d.wall.mode) >= 0 && !d.wall.activeId && d.wall.library.length) {
+        d.wall.activeId = d.wall.library[d.wall.library.length - 1].id;
+      }
+      if (d.wall.activeId && !d.wall.library.some(function (w) { return w.id === d.wall.activeId; })) d.wall.activeId = "";
     }
     if (typeof o.tex === "number") d.tex = Math.min(2, Math.max(0, o.tex));
     if (o.glass && typeof o.glass === "object") {
+      d.glass.profile = ["clear", "balanced", "readable", "custom"].indexOf(o.glass.profile) >= 0 ? o.glass.profile : "balanced";
       ["band", "str", "disp"].forEach(function (k) {
         if (typeof o.glass[k] === "number") d.glass[k] = o.glass[k];
       });
@@ -477,7 +543,7 @@
         var v = o.layout[k];
         if (v && typeof v.x === "number" && typeof v.y === "number" &&
             isFinite(v.x) && isFinite(v.y)) {
-          d.layout[k] = { x: v.x, y: v.y };
+          d.layout[k] = { x: v.x, y: v.y, z: typeof v.z === "number" && isFinite(v.z) ? v.z : 0 };
         }
       });
       /* 旧版全局日历摆位迁移到第一个页面 */
@@ -527,6 +593,14 @@
     if (localState.wall && localState.wall.fileData && syncState.wall && !syncState.wall.fileData) {
       syncState.wall.fileData = localState.wall.fileData;
       syncState.wall.fileType = localState.wall.fileType;
+    }
+    if (localState.wall && Array.isArray(localState.wall.library) && syncState.wall && Array.isArray(syncState.wall.library)) {
+      var localLibById = {};
+      localState.wall.library.forEach(function (x) { if (x && x.id) localLibById[x.id] = x; });
+      syncState.wall.library.forEach(function (x) {
+        var old = x && x.id ? localLibById[x.id] : null;
+        if (old && !x.data && old.data) x.data = old.data;
+      });
     }
     var localById = {};
     (localState.sidebar || []).forEach(function (x) { if (x && x.id) localById[x.id] = x; });
@@ -582,16 +656,22 @@
       if (!raw || typeof raw !== "object") return;
       var next = normalize(raw);
       var sameSidebar = JSON.stringify(next.sidebar) === JSON.stringify(S.sidebar);
-      if (sameSidebar) {
-        sbPruneSelection();
-        sbSyncMeta();
-        renderSbBatchTools();
+      var sameTodos = JSON.stringify(next.todos) === JSON.stringify(S.todos);
+      if (sameSidebar && sameTodos) {
+        sbPruneSelection(); sbSyncMeta(); renderSbBatchTools();
         return;
       }
       S = next;
       sbPruneSelection();
-      renderSidebar();
-      persistImages();
+      if (!sameSidebar) {
+        renderSidebar();
+        renderHomePins();
+        persistImages();
+      }
+      if (!sameTodos) {
+        renderTodos();
+        updateProductivity();
+      }
       return;
     }
     if (areaName !== "sync" || !changes || !changes[SYNC_KEY] || !S || S.syncEnabled === false) return;
@@ -611,7 +691,7 @@
 
   /* ---------------- 小工具 ---------------- */
   var toastTimer = 0;
-  function toast(msg, action) {
+  function toast(msg, action, duration) {
     var t = $("toast");
     t.textContent = "";
     var text = document.createElement("span");
@@ -628,7 +708,7 @@
     t.classList.add("show");
     window.LiquidGlass.refresh();
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove("show"); }, action ? 8000 : 2400);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, duration || (action ? 8000 : 2400));
   }
   function hostOf(u) {
     var m = /^https?:\/\/([^\/:?#]+)/i.exec(u || "");
@@ -710,6 +790,12 @@
     var urls = faviconURLs(u);
     return urls.length ? urls[0] : "";
   }
+  /* favicon 内存缓存：切换页面会整页重建瓦片 DOM，不缓存会导致
+     每次切页都对同一批域名重新发起最多 3 次图标请求，体感就是“切页就重载”。
+     这里按 host 记住已探明的可用地址 / 已确认无图标，Inflight 合并并发请求。 */
+  var faviconOk = Object.create(null);
+  var faviconDead = Object.create(null);
+  var faviconInflight = Object.create(null);
   /* 链接打开方式统一走这里（设置里可切换当前页 / 新标签） */
   function openURL(u) {
     if (!u) return;
@@ -740,36 +826,84 @@
       return;
     }
 
+    function showLetter() { letterSkin(ic, host || fallbackLabel || "x"); }
+    function attachImg(src, onFail) {
+      var cached = new Image();
+      cached.alt = "";
+      cached.referrerPolicy = "no-referrer";
+      cached.draggable = false;
+      try { cached.decoding = "async"; } catch (e) {}
+      cached.addEventListener("load", function () {
+        ic.textContent = "";
+        ic.appendChild(cached);
+      });
+      if (onFail) cached.addEventListener("error", onFail);
+      else cached.addEventListener("error", showLetter);
+      cached.src = src;
+    }
+
+    /* 快路径：已探明可用地址只发一次请求（走浏览器 HTTP 缓存），已确认无图标直接字母兜底。 */
+    if (faviconOk[host]) {
+      attachImg(faviconOk[host], function () {
+        delete faviconOk[host];
+        faviconDead[host] = false;
+        loadFavicon(ic, u, fallbackLabel);
+      });
+      return;
+    }
+    if (faviconDead[host]) { showLetter(); return; }
+    if (faviconInflight[host]) {
+      faviconInflight[host].push({ ic: ic, label: fallbackLabel, url: u });
+      return;
+    }
+    faviconInflight[host] = [];
+
     var settled = false;
     var fallbackShown = false;
     var index = 0;
+    var timer = 0;
+    function finishOk(url) {
+      faviconOk[host] = url;
+      var waiters = faviconInflight[host] || [];
+      delete faviconInflight[host];
+      if (timer) clearTimeout(timer);
+      waiters.forEach(function (w) { loadFavicon(w.ic, w.url, w.label); });
+    }
     function fallback() {
       if (settled || fallbackShown) return;
       fallbackShown = true;
-      letterSkin(ic, host || fallbackLabel || "x");
+      if (!faviconOk[host]) faviconDead[host] = true;
+      var waiters = faviconInflight[host] || [];
+      delete faviconInflight[host];
+      if (timer) clearTimeout(timer);
+      showLetter();
+      waiters.forEach(function (w) { loadFavicon(w.ic, w.url, w.label); });
     }
     function tryNext() {
       if (settled) return;
       if (index >= urls.length) {
-        fallback();
         settled = true;
+        fallback();
         return;
       }
+      var src = urls[index++];
       var img = new Image();
       img.alt = "";
       img.referrerPolicy = "no-referrer";
       img.draggable = false;
+      try { img.decoding = "async"; } catch (e) {}
       img.addEventListener("load", function () {
         if (settled) return;
         settled = true;
         ic.textContent = "";
         ic.appendChild(img);
+        finishOk(src);
       });
       img.addEventListener("error", tryNext);
-      img.src = urls[index++];
+      img.src = src;
     }
     tryNext();
-    setTimeout(fallback, 2500);
+    timer = setTimeout(fallback, 2500);
   }
   function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
@@ -1224,6 +1358,7 @@
     renderTiles();
   }
   function toggleShortcutBatch() {
+    if (!shortcutBatch && layoutEdit) setLayoutEdit(false);
     shortcutBatch = !shortcutBatch;
     if (!shortcutBatch) selectedShortcuts = {};
     renderTiles();
@@ -1271,12 +1406,149 @@
     items.forEach(function (sc) { window.open(sc.u, "_blank", "noopener"); });
     toast("已打开本组 " + items.length + " 个快捷方式");
   }
+  function layoutSnapshot() {
+    try { return JSON.parse(JSON.stringify({ pages: S.pages, layout: S.layout })); }
+    catch (e) { return { pages: S.pages.slice(), layout: S.layout }; }
+  }
+  function recordLayoutUndo(label, before) {
+    layoutUndoSnapshot = before;
+    $("layoutUndo").disabled = !layoutUndoSnapshot;
+    toast(label, undoLayoutChange, 2000);
+  }
+  function undoLayoutChange() {
+    if (!layoutUndoSnapshot) return;
+    S.pages = layoutUndoSnapshot.pages;
+    S.layout = layoutUndoSnapshot.layout;
+    layoutUndoSnapshot = null;
+    store.save({ pages: S.pages, layout: S.layout });
+    applyLayout(); renderTiles(); buildPager(); syncSettings();
+    $("layoutUndo").disabled = true;
+    toast("已撤销上一步布局更改");
+  }
+  function setLayoutEdit(open) {
+    layoutEdit = !!open;
+    document.body.classList.toggle("layout-editing", layoutEdit);
+    $("layoutEditToggle").setAttribute("aria-pressed", layoutEdit ? "true" : "false");
+    $("layoutEditToggle").textContent = layoutEdit ? "退出编辑" : "编辑布局";
+    $("layoutEditor").hidden = !layoutEdit;
+    if (!layoutEdit) closeTileActionMenu();
+    renderLayoutEditor(); renderTiles();
+  }
+  function renderLayoutEditor() {
+    var size = activePage().tileSize || "medium";
+    [].slice.call($("tileSizeSeg").querySelectorAll("button")).forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-size") === size);
+    });
+    var box = $("layoutWidgetSeg"); box.textContent = "";
+    WIDGET_KEYS.forEach(function (key) {
+      var b = document.createElement("button"); b.type = "button";
+      b.textContent = WIDGET_LABELS[key]; b.className = activePage()[key] ? "on" : "";
+      b.setAttribute("aria-pressed", activePage()[key] ? "true" : "false");
+      b.addEventListener("click", function () { setSceneWidget(key, !activePage()[key]); });
+      box.appendChild(b);
+    });
+    $("layoutUndo").disabled = !layoutUndoSnapshot;
+  }
+  function setSceneWidget(key, visible) {
+    var before = layoutSnapshot(), page = activePage();
+    page[key] = visible ? (page[key] || { x: 0, y: 0 }) : null;
+    store.save({ pages: S.pages });
+    applyLayout(); renderLayoutEditor(); syncSettings();
+    recordLayoutUndo((visible ? "已显示" : "已隐藏") + WIDGET_LABELS[key], before);
+  }
+  function setTileSize(size) {
+    if (["small", "medium", "large"].indexOf(size) < 0 || activePage().tileSize === size) return;
+    var before = layoutSnapshot(); activePage().tileSize = size;
+    store.save({ pages: S.pages }); renderTiles(); renderLayoutEditor();
+    recordLayoutUndo("已调整快捷方式大小", before);
+  }
+  function renderHomePins() {
+    var box = $("homePins"), list = $("homePinList");
+    if (!box || !list || !S) return;
+    list.textContent = "";
+    var items = (S.sidebar || []).filter(function (item) {
+      return item.pinned && (!item.sceneId || item.sceneId === S.activePage);
+    });
+    box.hidden = !items.length;
+    items.forEach(function (item) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "home-pin-chip";
+      b.textContent = item.title || (item.url ? hostOf(item.url) : item.type === "image" ? "图片收藏" : "收藏内容");
+      b.title = "固定在「" + activePage().name + "」· 点击打开收藏";
+      b.addEventListener("click", function () { openCollectionItem(item); });
+      list.appendChild(b);
+    });
+  }
+  function closeTileActionMenu() {
+    if (tileActionMenu && tileActionMenu.parentNode) tileActionMenu.parentNode.removeChild(tileActionMenu);
+    tileActionMenu = null;
+    document.removeEventListener("pointerdown", dismissTileActionMenu, true);
+    document.removeEventListener("keydown", dismissTileMenuEscape, true);
+  }
+  function dismissTileActionMenu(e) {
+    if (tileActionMenu && !tileActionMenu.contains(e.target)) closeTileActionMenu();
+  }
+  function dismissTileMenuEscape(e) { if (e.key === "Escape") closeTileActionMenu(); }
+  function reorderShortcut(sc, direction) {
+    var page = activePage(), from = page.items.indexOf(sc), to = clampn(from + direction, 0, page.items.length - 1);
+    if (from < 0 || to === from) { toast(direction < 0 ? "已经在最前面" : "已经在最后面"); return; }
+    var before = layoutSnapshot();
+    page.items.splice(from, 1); page.items.splice(to, 0, sc);
+    store.save({ pages: S.pages }); renderTiles();
+    recordLayoutUndo(direction < 0 ? "快捷方式已前移" : "快捷方式已后移", before);
+  }
+  function moveShortcutToPage(sc, pageId) {
+    var fromPage = activePage(), toPage = S.pages.filter(function (p) { return p.id === pageId; })[0];
+    if (!toPage || toPage === fromPage || toPage.items.length >= 60) return;
+    var before = layoutSnapshot(), ix = fromPage.items.indexOf(sc);
+    if (ix < 0) return;
+    fromPage.items.splice(ix, 1);
+    sc.pos = { x: 0, y: 0, z: 0 };
+    toPage.items.push(sc);
+    store.save({ pages: S.pages }); renderTiles(); buildPager();
+    recordLayoutUndo("快捷方式已移至「" + toPage.name + "」", before);
+  }
+  function openTileActionMenu(anchor, sc) {
+    closeTileActionMenu();
+    var menu = document.createElement("div"); menu.className = "tile-action-menu"; menu.setAttribute("role", "menu");
+    menu.setAttribute("data-glass", "");
+    menu.setAttribute("data-lg-role", "operation");
+    menu.setAttribute("data-lg-str", ".08");
+    menu.setAttribute("data-lg-band", ".14");
+    menu.setAttribute("data-lg-disp", ".3");
+    function action(label, fn) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = label; b.setAttribute("role", "menuitem");
+      b.addEventListener("click", function (ev) { ev.stopPropagation(); closeTileActionMenu(); fn(); });
+      menu.appendChild(b);
+    }
+    action("前移", function () { reorderShortcut(sc, -1); });
+    action("后移", function () { reorderShortcut(sc, 1); });
+    var others = S.pages.filter(function (p) { return p.id !== S.activePage; });
+    if (others.length) {
+      var divider = document.createElement("div"); divider.className = "menu-divider"; menu.appendChild(divider);
+      others.forEach(function (p) { action("移至「" + p.name + "」", function () { moveShortcutToPage(sc, p.id); }); });
+    }
+    var divider2 = document.createElement("div"); divider2.className = "menu-divider"; menu.appendChild(divider2);
+    action("编辑快捷方式", function () { openDialog(activePage().items.indexOf(sc)); });
+    document.body.appendChild(menu); tileActionMenu = menu;
+    var r = anchor.getBoundingClientRect(), mr = menu.getBoundingClientRect();
+    menu.style.left = clampn(r.right - mr.width, 8, window.innerWidth - mr.width - 8) + "px";
+    menu.style.top = clampn(r.bottom + 4, 8, window.innerHeight - Math.min(mr.height, window.innerHeight - 16) - 8) + "px";
+    window.LiquidGlass.refresh();
+    setTimeout(function () {
+      document.addEventListener("pointerdown", dismissTileActionMenu, true);
+      document.addEventListener("keydown", dismissTileMenuEscape, true);
+    }, 0);
+  }
   function tileEl(sc) {
     var el = document.createElement("div");
     el.className = "glass tile";
     el.setAttribute("data-glass", "");
+    el.setAttribute("data-shortcut-id", sc.id);
     if (shortcutBatch && selectedShortcuts[sc.id]) el.classList.add("selected");
     el.title = sc.u;
+    var pos = sc.pos || (sc.pos = { x: 0, y: 0 });
+    window.LGDragPosition.apply(el, pos.x, pos.y);
+    el.style.zIndex = pos.z ? String(pos.z) : "";
 
     var ic = document.createElement("div");
     ic.className = "ic";
@@ -1294,28 +1566,38 @@
       meta.textContent = "#" + sc.tags.join(" #");
     }
 
-    var menu = document.createElement("div");
-    menu.className = "menu";
-    menu.textContent = "⋯";
-    menu.title = "编辑";
+    var handle = document.createElement("button");
+    handle.type = "button"; handle.className = "layout-handle tile-handle";
+    handle.setAttribute("data-drag-handle", ""); handle.setAttribute("aria-label", "拖动快捷方式"); handle.title = "自由摆放";
+    handle.textContent = "⠿";
+    var menu = document.createElement("button");
+    menu.type = "button"; menu.className = "menu"; menu.setAttribute("data-nodrag", "");
+    menu.textContent = "⋯"; menu.title = "快捷方式操作"; menu.setAttribute("aria-label", "快捷方式操作");
     menu.addEventListener("click", function (ev) {
       ev.stopPropagation();
-      openDialog(activePage().items.indexOf(sc));
+      if (tileActionMenu) closeTileActionMenu();
+      else openTileActionMenu(menu, sc);
     });
 
-    el.appendChild(ic); el.appendChild(nm); if (meta) el.appendChild(meta); el.appendChild(menu);
+    el.appendChild(ic); el.appendChild(nm); if (meta) el.appendChild(meta); el.appendChild(handle); el.appendChild(menu);
     if (shortcutBatch) {
       var check = document.createElement("span");
       check.className = "tilecheck";
       check.textContent = selectedShortcuts[sc.id] ? "✓" : "";
       el.appendChild(check);
     }
-    el.addEventListener("click", function () { if (shortcutBatch) toggleShortcutSelected(sc); else openURL(sc.u); });
+    el.addEventListener("click", function () {
+      if (shortcutBatch) toggleShortcutSelected(sc);
+      else if (!layoutEdit) openURL(sc.u);
+    });
     return el;
   }
   function renderTiles() {
     var box = $("tileGrid");
+    closeTileActionMenu();
     box.textContent = "";
+    box.classList.remove("tile-size-small", "tile-size-medium", "tile-size-large");
+    box.classList.add("tile-size-" + (activePage().tileSize || "medium"));
     renderShortcutTools();
 
     visibleShortcutItems().forEach(function (sc) {
@@ -1336,35 +1618,13 @@
     box.appendChild(add);
 
     /* 瓦片就是普通 .glass 元素，交给折射引擎统一处理 */
+    renderHomePins();
+    renderLayoutEditor();
     window.LiquidGlass.refresh();
   }
 
   /* ================= 快捷方式拖动 =================
-     网格排序模式：拖动只负责"搬起来"（弹簧物理照旧），
-     松手按落点最近的格子换位，顺序落盘后重排。不再存自由位移。 */
-  function tileReorder(sc, d) {
-    if (shortcutBatch) { renderTiles(); return; }
-    var pg = activePage();
-    var px = d.nat.l + d.cx + d.nat.w / 2, py = d.nat.t + d.cy + d.nat.h / 2;
-    var els = [].slice.call($("tileGrid").querySelectorAll(".tile"));
-    var from = pg.items.indexOf(sc);
-    if (from < 0 || from >= els.length) { renderTiles(); return; }
-    var best = -1, bd = Infinity;
-    for (var i = 0; i < pg.items.length; i++) {
-      if (i === from || !els[i]) continue;
-      var r = els[i].getBoundingClientRect();
-      var dx = px - (r.left + r.width / 2), dy = py - (r.top + r.height / 2);
-      var dist = dx * dx + dy * dy;
-      if (dist < bd) { bd = dist; best = i; }
-    }
-    /* 落点离任何格子都太远 → 原位放回 */
-    var th = els[0] ? Math.pow(els[0].getBoundingClientRect().width * 0.62, 2) * 2 : 0;
-    if (best < 0 || bd > th) { renderTiles(); return; }
-    pg.items.splice(from, 1);
-    pg.items.splice(best, 0, sc);
-    store.save({ pages: S.pages });
-    renderTiles();
-  }
+     快捷方式与小组件都保存自由拖放坐标；菜单仍提供前移/后移的点击替代操作。 */
 
   /* ---------------- 编辑对话框 ---------------- */
   var dlgIdx = -1;
@@ -1394,7 +1654,8 @@
       u: u,
       /* 保留旧版本的文件夹字段，避免编辑旧数据时意外丢失；功能已不再暴露。 */
       folder: old && old.folder ? old.folder : "",
-      tags: parseShortcutTags($("dlgTags").value)
+      tags: parseShortcutTags($("dlgTags").value),
+      pos: old && old.pos ? old.pos : { x: 0, y: 0 }
     };
     var pg = activePage();
     if (dlgIdx >= 0) pg.items[dlgIdx] = sc;
@@ -1426,7 +1687,36 @@
       b.setAttribute("data-glass", "");
       b.setAttribute("data-id", p.id);
       b.textContent = p.name;
-      b.title = "点击切换 · 双击改名 · 右键删除";
+      b.title = "点击切换场景 · 拖动排序 · 双击改名 · 右键删除场景";
+      b.draggable = true;
+      b.addEventListener("dragstart", function (ev) {
+        ev.dataTransfer.effectAllowed = "move";
+        ev.dataTransfer.setData("text/plain", p.id);
+        b.classList.add("reordering");
+      });
+      b.addEventListener("dragend", function () {
+        b.classList.remove("reordering");
+        [].slice.call(box.querySelectorAll(".ptab")).forEach(function (tab) { tab.classList.remove("page-drop-target"); });
+      });
+      b.addEventListener("dragover", function (ev) {
+        if (!ev.dataTransfer.types || [].slice.call(ev.dataTransfer.types).indexOf("text/plain") < 0) return;
+        ev.preventDefault();
+        b.classList.add("page-drop-target");
+      });
+      b.addEventListener("dragleave", function () { b.classList.remove("page-drop-target"); });
+      b.addEventListener("drop", function (ev) {
+        ev.preventDefault();
+        b.classList.remove("page-drop-target");
+        var fromId = ev.dataTransfer.getData("text/plain");
+        var from = S.pages.findIndex(function (page) { return page.id === fromId; });
+        var to = S.pages.indexOf(p);
+        if (from < 0 || to < 0 || from === to) return;
+        var before = layoutSnapshot();
+        S.pages.splice(to, 0, S.pages.splice(from, 1)[0]);
+        store.save({ pages: S.pages });
+        buildPager();
+        recordLayoutUndo("场景顺序已更新", before);
+      });
       b.addEventListener("click", function () { switchPage(p.id); });
       b.addEventListener("dblclick", function () { renamePage(p, b); });
       b.addEventListener("contextmenu", function (ev) {
@@ -1439,14 +1729,14 @@
     add.type = "button";
     add.className = "ptab add";
     add.textContent = "+";
-    add.title = "新建页面";
+    add.title = "新建场景";
     add.addEventListener("click", function () {
-      var pg = { id: pageUid(), name: "页面 " + (S.pages.length + 1), items: [], cal: null };
+      var pg = { id: pageUid(), name: "场景 " + (S.pages.length + 1), items: [], cal: null, todo: null, note: null, cd: null, tileSize: "medium" };
       S.pages.push(pg);
       S.activePage = pg.id;
       store.save({ pages: S.pages, activePage: S.activePage });
       switchPage(pg.id, true);
-      toast("已新建页面，双击页签可改名");
+      toast("已新建场景，双击名称可改名");
     });
     box.appendChild(add);
     [].slice.call(box.querySelectorAll(".ptab")).forEach(function (b) {
@@ -1467,6 +1757,7 @@
       renderTiles();
       buildPager();
       renderNote();                      /* 便签内容随页切换 */
+      renderTodos();                     /* 新建待办归属当前场景 */
       applyLayout();                     /* 小组件切到新页面自己的摆位（隐藏间隙内换装） */
       grid.classList.remove("out");
       if (cal) cal.classList.remove("out");
@@ -1501,7 +1792,7 @@
     store.save({ pages: S.pages, activePage: S.activePage });
     renderTiles();
     buildPager();
-    toast("已删除「" + p.name + "」");
+    toast("已删除场景「" + p.name + "」");
   }
 
   /* ---------------- 日历 ---------------- */
@@ -1555,7 +1846,13 @@
 
   /* ---------------- 小组件：待办 / 便签 / 倒数日 ---------------- */
   function todoDueText(t) { if (!t.due) return ""; var label = t.due === todayKey() ? "今天" : t.due < todayKey() ? "已逾期" : t.due; return label + (t.repeat !== "none" ? " · " + ({ daily: "每天", weekly: "每周", monthly: "每月" }[t.repeat] || "重复") : ""); }
-  function visibleTodos() { return S.todos.filter(function (t) { if (todoFilter === "open") return !t.done && !t.archived; if (todoFilter === "done") return t.done && !t.archived; if (todoFilter === "archived") return !!t.archived; return !t.archived; }); }
+  function visibleTodos() { return S.todos.filter(function (t) {
+    if (t.sceneId && t.sceneId !== S.activePage) return false;
+    if (todoFilter === "open") return !t.done && !t.archived;
+    if (todoFilter === "done") return t.done && !t.archived;
+    if (todoFilter === "archived") return !!t.archived;
+    return !t.archived;
+  }); }
   function nextRepeatDate(due, repeat) { var d = dateFromKey(due); if (repeat === "daily") d.setDate(d.getDate() + 1); else if (repeat === "weekly") d.setDate(d.getDate() + 7); else if (repeat === "monthly") d.setMonth(d.getMonth() + 1); else return due; return dateKey(d); }
   function renderTodos() {
     var box = $("todoList"); box.textContent = ""; var list = visibleTodos();
@@ -1563,7 +1860,12 @@
     list.slice(0, 100).forEach(function (t) {
       var row = document.createElement("div"); row.className = "titem" + (t.done ? " done" : "") + (t.priority === "urgent" ? " urgent" : t.priority === "high" ? " high" : "");
       var chk = document.createElement("button"); chk.type = "button"; chk.className = "tchk"; chk.title = t.done ? "标记为未完成" : "标记为已完成";
-      chk.addEventListener("click", function () { if (!t.done && t.repeat !== "none" && t.due) S.todos.unshift(normalizeTodo({ t: t.t, due: nextRepeatDate(t.due, t.repeat), priority: t.priority, repeat: t.repeat, remind: t.remind }, 0)); t.done = !t.done; store.save({ todos: S.todos }); renderTodos(); updateProductivity(); });
+      chk.addEventListener("click", function () {
+        if (!t.done && t.repeat !== "none" && t.due) S.todos.unshift(normalizeTodo({ t: t.t, due: nextRepeatDate(t.due, t.repeat), priority: t.priority, repeat: t.repeat, remind: t.remind, sceneId: t.sceneId }, 0));
+        t.done = !t.done;
+        if (t.sourceId) updateSidebarItem(t.sourceId, function (item) { item.readState = t.done ? "done" : "later"; });
+        store.save({ todos: S.todos }); renderTodos(); updateProductivity();
+      });
       var col = document.createElement("div"); col.className = "todo-col";
       var tx = document.createElement("span"); tx.className = "ttxt"; tx.textContent = t.t; tx.title = "双击编辑";
       tx.addEventListener("dblclick", function () {
@@ -1579,16 +1881,24 @@
         tx.replaceWith(edit); edit.focus(); edit.select();
       });
       col.appendChild(tx);
-      var meta = document.createElement("small"); meta.className = "todo-meta"; meta.textContent = [todoDueText(t), t.priority !== "normal" ? ({ low: "低", high: "重要", urgent: "紧急" }[t.priority]) : "", t.remind ? "提醒" : ""].filter(Boolean).join(" · "); if (meta.textContent) col.appendChild(meta);
+      var meta = document.createElement("small"); meta.className = "todo-meta"; meta.textContent = [t.sourceId ? "阅读收藏" : "", todoDueText(t), t.priority !== "normal" ? ({ low: "低", high: "重要", urgent: "紧急" }[t.priority]) : "", t.remind ? "提醒" : ""].filter(Boolean).join(" · "); if (meta.textContent) col.appendChild(meta);
+      var openSource = null;
+      if (t.sourceId || t.sourceUrl) {
+        openSource = document.createElement("button"); openSource.type = "button"; openSource.className = "todoact"; openSource.textContent = "↗"; openSource.title = "打开关联收藏";
+        openSource.addEventListener("click", function () {
+          var source = S.sidebar.filter(function (x) { return x.id === t.sourceId; })[0];
+          if (source) openCollectionItem(source); else if (t.sourceUrl) openURL(t.sourceUrl);
+        });
+      }
       var arch = document.createElement("button"); arch.type = "button"; arch.className = "todoact"; arch.textContent = t.archived ? "↩" : "▣"; arch.title = t.archived ? "取消归档" : "归档"; arch.addEventListener("click", function () { t.archived = !t.archived; store.save({ todos: S.todos }); renderTodos(); });
       var del = document.createElement("button"); del.type = "button"; del.className = "tdel"; del.textContent = "×"; del.title = "删除"; del.addEventListener("click", function () { S.todos = S.todos.filter(function (x) { return x.id !== t.id; }); store.save({ todos: S.todos }); renderTodos(); });
-      row.appendChild(chk); row.appendChild(col); row.appendChild(arch); row.appendChild(del); box.appendChild(row);
+      row.appendChild(chk); row.appendChild(col); if (openSource) row.appendChild(openSource); row.appendChild(arch); row.appendChild(del); box.appendChild(row);
     });
   }
   function addTodo() {
     var v = $("todoInput").value.trim(); if (!v) return;
     if ($("todoRemind").checked && typeof Notification !== "undefined" && Notification.permission === "default") Notification.requestPermission().catch(function () {});
-    S.todos.unshift(normalizeTodo({ id: uid("todo"), t: v, due: $("todoDue").value, priority: $("todoPriority").value, repeat: $("todoRepeat").value, remind: $("todoRemind").checked, done: false, archived: false }, 0));
+    S.todos.unshift(normalizeTodo({ id: uid("todo"), t: v, due: $("todoDue").value, priority: $("todoPriority").value, repeat: $("todoRepeat").value, remind: $("todoRemind").checked, done: false, archived: false, sceneId: S.activePage }, 0));
     if (S.todos.length > 100) S.todos.length = 100; $("todoInput").value = ""; $("todoDue").value = ""; $("todoRemind").checked = false; store.save({ todos: S.todos }); renderTodos(); updateProductivity();
   }
   function checkTodoReminders() {
@@ -1687,7 +1997,7 @@
   var sbMutationQueue = [], sbMutationBusy = false, SB_MUTATION_MAX_ATTEMPTS = 3;
 
   function sbVisibleItems() {
-    return S.sidebar.filter(function (item) { return SB_CORE.matches(item, sbQuery, sbFilter); });
+    return S.sidebar.filter(sbMatches);
   }
   function sbSelectedItems() {
     return S.sidebar.filter(function (item) { return !!sbSelected[item.id]; });
@@ -1701,6 +2011,15 @@
         return;
       }
     }
+  }
+  function openCollectionItem(item) {
+    if (!item) return;
+    if (item.type === "link" && item.url) { openURL(item.url); return; }
+    if (item.type === "image" && (item.url || item.src) && /^https?:/i.test(item.url || item.src)) {
+      openURL(item.url || item.src); return;
+    }
+    openSb();
+    setTimeout(function () { sbFocusCard(item.id); }, 100);
   }
   function sbPruneSelection() {
     var live = Object.create(null);
@@ -1838,6 +2157,96 @@
     drainSidebarMutations();
   }
 
+  function sbMatches(item) {
+    if (!SB_CORE.matches(item, sbQuery, sbFilter)) return false;
+    if (sbStatusFilter === "later") return item.readState === "later";
+    if (sbStatusFilter === "done") return item.readState === "done";
+    return true;
+  }
+  function updateSidebarItem(id, update, done) {
+    mutateSidebar(function (latestSidebar) {
+      var item = latestSidebar.filter(function (x) { return x && x.id === id; })[0];
+      if (!item) return { sidebar: latestSidebar, changed: false };
+      update(item);
+      return { sidebar: latestSidebar, changed: true, item: item };
+    }, function (result, error) {
+      if (!error && result && result.changed) { renderSidebar(); renderHomePins(); }
+      if (typeof done === "function") done(result, error);
+    });
+  }
+  function addSidebarTask(item, markLater) {
+    if (!item) return;
+    var existing = S.todos.filter(function (t) { return t.sourceId === item.id && !t.done && !t.archived; })[0];
+    if (existing) {
+      if (markLater) updateSidebarItem(item.id, function (x) { x.readState = "later"; });
+      toast("这项收藏已经在待办里"); return;
+    }
+    var title = item.title || (item.url ? hostOf(item.url) : item.type === "image" ? "图片收藏" : "收藏内容");
+    S.todos.unshift(normalizeTodo({
+      id: uid("todo"), t: (markLater ? "稍后阅读：" : "处理收藏：") + title,
+      sourceId: item.id, sourceUrl: item.url || "", sceneId: S.activePage,
+      priority: "normal", repeat: "none", createdAt: Date.now()
+    }, 0));
+    if (S.todos.length > 100) S.todos.length = 100;
+    store.save({ todos: S.todos }); renderTodos(); updateProductivity();
+    if (markLater) updateSidebarItem(item.id, function (x) { x.readState = "later"; });
+    toast(markLater ? "已加入稍后阅读，并出现在当前场景待办" : "已加入当前场景待办");
+  }
+  function setSidebarPinned(item) {
+    if (!item) return;
+    var pin = !item.pinned;
+    updateSidebarItem(item.id, function (x) {
+      x.pinned = pin;
+      if (pin) x.sceneId = S.activePage;
+    }, function (result, error) {
+      if (error) toast("固定状态保存失败");
+      else toast(pin ? "已固定到「" + activePage().name + "」首页" : "已从首页取消固定");
+    });
+  }
+  function setSidebarReadState(item, state, done) {
+    if (!item) return;
+    if (state === "done") {
+      S.todos.forEach(function (todo) { if (todo.sourceId === item.id) todo.done = true; });
+      store.save({ todos: S.todos });
+      renderTodos();
+    }
+    updateSidebarItem(item.id, function (x) { x.readState = state; }, done);
+  }
+  function renderDiscoveryItem(item) {
+    discoveryCurrent = item || null;
+    if (!item) { $("discoverDialog").classList.remove("open"); $("discoverDialog").setAttribute("aria-hidden", "true"); return; }
+    $("discoverTitle").textContent = item.title || (item.url ? hostOf(item.url) : item.type === "image" ? "图片收藏" : "收藏内容");
+    var saved = item.savedAt ? new Date(item.savedAt).toLocaleDateString("zh-CN") : "收藏时间未知";
+    var origin = item.url ? hostOf(item.url) : item.type === "image" ? "图片" : "文字摘录";
+    var scene = item.sceneId ? (S.pages.filter(function (p) { return p.id === item.sceneId; })[0] || {}).name : "";
+    $("discoverMeta").textContent = [saved, origin, scene].filter(Boolean).join(" · ");
+    $("discoverBody").textContent = item.text || item.url || item.src || "这条收藏还没有备注。";
+    $("discoverDialog").classList.add("open"); $("discoverDialog").setAttribute("aria-hidden", "false");
+    window.LiquidGlass.refresh();
+  }
+  function discoverNext() {
+    var items = (S.sidebar || []).filter(function (item) {
+      return (item.readState === "inbox" || item.readState === "later") && !discoverySeen[item.id];
+    });
+    if (!items.length) {
+      renderDiscoveryItem(null);
+      toast(S.sidebar.length ? "未处理的收藏都看过了" : "收集板还是空的");
+      return;
+    }
+    var item = items[Math.floor(Math.random() * items.length)];
+    renderDiscoveryItem(item);
+  }
+  function discoverMark(state) {
+    var item = discoveryCurrent;
+    if (!item) return;
+    discoverySeen[item.id] = true;
+    setSidebarReadState(item, state, function (result, error) {
+      if (error) { toast("收藏状态保存失败"); return; }
+      discoverNext();
+    });
+  }
+  function closeDiscovery() { discoveryCurrent = null; $("discoverDialog").classList.remove("open"); $("discoverDialog").setAttribute("aria-hidden", "true"); }
+
   function sbExtent() {
     var m = 0;
     S.sidebar.forEach(function (it) { m = Math.max(m, (it.y || 0) + (sbH[it.id] || 90)); });
@@ -1942,6 +2351,12 @@
       el.appendChild(tags);
     }
 
+    var stateLabel = item.readState === "later" ? "稍后看" : item.readState === "done" ? "已归档" : item.readState === "snoozed" ? "暂不重访" : "";
+    if (stateLabel) {
+      var state = document.createElement("span"); state.className = "sbstate"; state.textContent = stateLabel;
+      el.appendChild(state);
+    }
+
     if (item.type === "text" && item.text) {
       var note = document.createElement("div");
       note.className = "note";
@@ -1950,12 +2365,23 @@
     }
 
     if (!sbBatchMode) {
-      var menu = document.createElement("div");
-      menu.className = "menu";
-      menu.textContent = "⋯";
-      menu.title = "编辑";
-      menu.addEventListener("click", function (ev) { ev.stopPropagation(); openSbDlg(idx); });
+      var menu = document.createElement("button");
+      menu.type = "button"; menu.className = "menu"; menu.setAttribute("data-nodrag", "");
+      menu.textContent = "⋯"; menu.title = "收藏操作"; menu.setAttribute("aria-label", "收藏操作");
+      var actions = document.createElement("div"); actions.className = "sbactions";
+      function action(label, fn) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = label;
+        b.addEventListener("click", function (ev) { ev.stopPropagation(); actions.classList.remove("open"); fn(); });
+        actions.appendChild(b);
+      }
+      action("稍后看 · 加入阅读待办", function () { addSidebarTask(item, true); });
+      action("加入当前场景待办", function () { addSidebarTask(item, false); });
+      action(item.pinned ? "取消固定到首页" : "固定到当前场景首页", function () { setSidebarPinned(item); });
+      action(item.readState === "done" ? "移出归档" : "归档收藏", function () { setSidebarReadState(item, item.readState === "done" ? "inbox" : "done", function (r, err) { if (err) toast("归档状态保存失败"); }); });
+      action("编辑收藏", function () { openSbDlg(idx); });
+      menu.addEventListener("click", function (ev) { ev.stopPropagation(); actions.classList.toggle("open"); });
       el.appendChild(menu);
+      el.appendChild(actions);
     }
 
     el.addEventListener("click", function (ev) {
@@ -1965,8 +2391,7 @@
         sbToggleSelected(item.id);
         return;
       }
-      if (item.type === "link" && item.url) openURL(item.url);
-      else if (item.type === "image" && (item.url || item.src) && /^https?:/i.test(item.url || item.src)) openURL(item.url || item.src);
+      openCollectionItem(item);
     });
     el.addEventListener("keydown", function (ev) {
       if (!sbBatchMode || (ev.key !== "Enter" && ev.key !== " ")) return;
@@ -2003,7 +2428,7 @@
     var box = $("sbCanvas");
     var view = SB_CORE.captureScroll(box);
     box.textContent = "";
-    var visible = S.sidebar.filter(function (it) { return SB_CORE.matches(it, sbQuery, sbFilter); });
+    var visible = S.sidebar.filter(sbMatches);
     if (!visible.length) {
       var e = document.createElement("div");
       e.className = "sbempty";
@@ -2011,7 +2436,7 @@
       box.appendChild(e);
     }
     S.sidebar.forEach(function (it, i) {
-      if (!SB_CORE.matches(it, sbQuery, sbFilter)) return;
+      if (!sbMatches(it)) return;
       var el = sbCardEl(it, i);
       if (!sbBatchMode) attachDrag(el, sbCardSpec(i, el));
       box.appendChild(el);
@@ -2136,6 +2561,7 @@
     if (!it || typeof it !== "object") return;
     var item = SB_CORE.normalizeItem(it, sbUid());
     item.id = sbUid();
+    if (!item.sceneId) item.sceneId = S.activePage;
     if (item.type === "link" && S.sidebar.some(function (old) { return SB_CORE.sameLink(old, item); })) {
       toast("这个链接已经在收集板中");
       return false;
@@ -2276,11 +2702,12 @@
     if (sbDlgIdx >= 0 && S.sidebar[sbDlgIdx]) {
       var old = S.sidebar[sbDlgIdx];
       it.id = old.id; it.x = old.x; it.y = old.y;
+      it.savedAt = old.savedAt; it.readState = old.readState; it.pinned = old.pinned; it.sceneId = old.sceneId;
       S.sidebar[sbDlgIdx] = it;
     } else {
       var bottom = SB_PAD;
       S.sidebar.forEach(function (o) { bottom = Math.max(bottom, (o.y || 0) + (sbH[o.id] || 90) + 12); });
-      it.id = sbUid(); it.x = SB_PAD; it.y = bottom;
+      it.id = sbUid(); it.x = SB_PAD; it.y = bottom; it.sceneId = S.activePage; it.savedAt = Date.now();
       S.sidebar.push(it);
     }
     store.save({ sidebar: S.sidebar });
@@ -2347,6 +2774,16 @@
     $("sbar").addEventListener("mouseleave", scheduleSbClose);
     $("sbAdd").addEventListener("click", function () { openSbDlg(-1); });
     $("sbOrganize").addEventListener("click", organizeSidebar);
+    $("sbDiscover").addEventListener("click", function () { discoverySeen = Object.create(null); discoverNext(); });
+    $("discoverSkip").addEventListener("click", function () {
+      if (discoveryCurrent) discoverySeen[discoveryCurrent.id] = true;
+      discoverNext();
+    });
+    $("discoverArchive").addEventListener("click", function () { discoverMark("done"); });
+    $("discoverHide").addEventListener("click", function () { discoverMark("snoozed"); });
+    $("discoverOpen").addEventListener("click", function () { if (discoveryCurrent) openCollectionItem(discoveryCurrent); });
+    $("discoverClose").addEventListener("click", closeDiscovery);
+    $("discoverDialog").addEventListener("click", function (e) { if (e.target === $("discoverDialog")) closeDiscovery(); });
     $("sbBatchToggle").addEventListener("click", toggleSbBatch);
     $("sbSelectAll").addEventListener("click", sbSelectVisible);
     $("sbClearSelection").addEventListener("click", sbClearSelection);
@@ -2359,6 +2796,13 @@
       b.addEventListener("click", function () {
         sbFilter = b.getAttribute("data-filter") || "all";
         [].slice.call($("sbFilters").children).forEach(function (x) { x.classList.toggle("on", x === b); });
+        renderSidebar();
+      });
+    });
+    [].slice.call($("sbStatusFilters").querySelectorAll("button")).forEach(function (b) {
+      b.addEventListener("click", function () {
+        sbStatusFilter = b.getAttribute("data-status") || "all";
+        [].slice.call($("sbStatusFilters").children).forEach(function (x) { x.classList.toggle("on", x === b); });
         renderSidebar();
       });
     });
@@ -2643,19 +3087,94 @@
     style.textContent = css;
     document.body.style.fontFamily = S.wall.fontFamily ? "var(--user-font), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" : "";
   }
+  function activeWallItem() {
+    if (!S || !S.wall || !S.wall.activeId) return null;
+    var found = (S.wall.library || []).filter(function (w) { return w.id === S.wall.activeId; })[0];
+    return found || null;
+  }
+  function wallItemSource(item) {
+    if (!item) return null;
+    if (item.kind === "video") return { kind: "video", data: item.data || "", url: item.url || "" };
+    if (item.kind === "image") return { kind: "local", data: item.data || "" };
+    if (/\.(?:mp4|webm|ogg)(?:[?#].*)?$/i.test(item.url || "")) return { kind: "video", data: "", url: item.url || "" };
+    return { kind: "url", url: item.url || "" };
+  }
   function wallChoices() {
     var choices = WALLS.map(function (x) { return { kind: "preset", id: x.id }; });
-    if (S.wall.url) choices.push({ kind: "url", url: S.wall.url });
-    if (S.wall.fileData) choices.push({ kind: /^data:video\//i.test(S.wall.fileData) ? "video" : "local", data: S.wall.fileData });
+    (S.wall.library || []).forEach(function (item) {
+      var src = wallItemSource(item);
+      if (src) choices.push(src);
+    });
+    /* 没有壁纸库的老状态：沿用单个 url / fileData，保证迁移前可用 */
+    if (!S.wall.library || !S.wall.library.length) {
+      if (S.wall.url) choices.push({ kind: "url", url: S.wall.url });
+      if (S.wall.fileData) choices.push({ kind: /^data:video\//i.test(S.wall.fileData) ? "video" : "local", data: S.wall.fileData });
+    }
     if (bingUrl) choices.push({ kind: "url", url: bingUrl });
     return choices;
+  }
+  /* 入库：按 kind+地址去重，超限时淘汰最旧的非正在用条目 */
+  function addWallToLibrary(item) {
+    var next = normalizeWallItem(item);
+    if (!next) { toast("壁纸地址无效，需要 HTTPS 图片/视频直链"); return null; }
+    var lib = S.wall.library || (S.wall.library = []);
+    var dup = null;
+    lib.forEach(function (w) {
+      if (dup) return;
+      if (w.kind === next.kind && (w.url || "") === (next.url || "") && (w.data || "") === (next.data || "")) dup = w;
+    });
+    if (dup) return dup;
+    next.addedAt = Date.now();
+    lib.unshift(next);
+    while (lib.length > WALL_LIB_MAX) {
+      var dropIx = -1;
+      for (var i = lib.length - 1; i >= 0; i--) {
+        if (lib[i].id !== S.wall.activeId) { dropIx = i; break; }
+      }
+      if (dropIx < 0) break;
+      lib.splice(dropIx, 1);
+    }
+    return next;
+  }
+  function applyWallItem(item) {
+    if (!item) return;
+    S.wall.activeId = item.id;
+    if (item.kind === "video") {
+      S.wall.mode = "video";
+      S.wall.fileData = item.data || "";
+      S.wall.url = item.url || "";
+      S.wall.fileType = item.data ? "video/mp4" : "";
+    } else if (item.kind === "image") {
+      S.wall.mode = "local";
+      S.wall.fileData = item.data || "";
+      S.wall.url = "";
+      S.wall.fileType = "image";
+    } else {
+      S.wall.mode = "video";
+      if (!/\.(?:mp4|webm|ogg)(?:[?#].*)?$/i.test(item.url || "")) S.wall.mode = "url";
+      S.wall.url = item.url || "";
+      if (S.wall.mode === "url") S.wall.fileData = "";
+    }
+    store.save({ wall: S.wall });
+    applyWall(); syncSettings();
+  }
+  function deleteWallItem(id) {
+    S.wall.library = (S.wall.library || []).filter(function (w) { return w.id !== id; });
+    if (S.wall.activeId === id) {
+      S.wall.activeId = "";
+      S.wall.mode = "preset"; S.wall.id = "aurora";
+      S.wall.url = ""; S.wall.fileData = ""; S.wall.fileType = "";
+    }
+    store.save({ wall: S.wall });
+    applyWall(); syncSettings();
+    toast("已删除该壁纸");
   }
   function showWallSource(source) {
     var wall = $("wall"), video = $("wallVideo"), root = document.documentElement;
     if (video) { video.pause(); video.removeAttribute("src"); video.style.display = "none"; }
     wall.style.backgroundImage = "";
     if (source && source.kind === "preset") {
-      var p = WALLS[0]; WALLS.forEach(function (w) { if (w.id === source.id) p = w; }); wall.style.backgroundImage = p.css; root.style.setProperty("--tex", String(S.tex));
+      var p = WALLS[0]; WALLS.forEach(function (w) { if (w.id === source.id) p = w; }); wall.style.backgroundImage = p.css; root.style.setProperty("--tex", (S.tex * 0.45).toFixed(2));
     } else if (source && source.kind === "video" && video) {
       video.src = source.data || S.wall.url; video.style.display = "block"; video.play().catch(function () {}); root.style.setProperty("--tex", (S.tex * 0.35).toFixed(2));
     } else if (source && (source.kind === "url" || source.kind === "local")) {
@@ -2664,7 +3183,9 @@
   }
   function applyWall() {
     var source;
-    if (S.wall.mode === "url") source = { kind: "url", url: S.wall.url };
+    var active = activeWallItem();
+    if (active) source = wallItemSource(active);
+    else if (S.wall.mode === "url") source = { kind: "url", url: S.wall.url };
     else if (S.wall.mode === "video") source = { kind: "video", data: S.wall.fileData, url: S.wall.url };
     else if (S.wall.mode === "local") source = { kind: "local", data: S.wall.fileData || S.wall.url, url: S.wall.url };
     else if (S.wall.mode === "bing" && bingUrl) source = { kind: "url", url: bingUrl };
@@ -2768,10 +3289,11 @@
     }
     drWrap.style.display = "";
     var W = DROPW, H = DROPH, LG = window.LiquidGlass;
-    var strength = Math.max(4, DR * S.glass.str * 2.4);
-    var band = Math.max(4, DR * S.glass.band * 2.9);
+    var displayScale = S.glass.profile === "readable" ? 1.12 : S.glass.profile === "clear" ? 1.3 : 1.2;
+    var strength = Math.max(4, DR * Math.max(0.23, S.glass.str * displayScale) * 2.4);
+    var band = Math.max(4, DR * S.glass.band * 2.9 * 1.08);
 
-    LG.rawFilter("lgDrop", LG.rawMap(W, H, sdf, band, strength), strength, S.glass.disp);
+    LG.rawFilter("lgDrop", LG.rawMap(W, H, sdf, band, strength), strength, Math.max(0.8, S.glass.disp * displayScale));
     /* 与引擎同理：水滴层不挂 blur，避免 Chromium 的 backdrop blur 边缘溢出亮带 */
     var v = "url(#lgDrop) saturate(140%) brightness(1.02)";
     drRefr.style.backdropFilter = v;
@@ -2869,7 +3391,7 @@
     { id: "noteWrap", key: "note", page: true, flow: true },
     { id: "cdWrap", key: "cd", page: true, flow: true }
   ];
-  /* 小组件使用固定网格避免重叠，但仍允许拖动来调整网格顺序。 */
+  /* 小组件默认横向排布；编辑布局时可以独立移动并保存偏移。 */
   function layoutObj(b) {
     if (b.page) return activePage()[b.key];   /* 可为 null：本页无此小组件 */
     return S.layout[b.key];
@@ -2886,7 +3408,40 @@
     if (b.page) store.save({ pages: S.pages });
     else store.save({ layout: S.layout });
   }
-  var dragCtx = null, dragLoop = 0;
+  var dragCtx = null, dragLoop = 0, dropPageTab = null;
+
+  function clearPageDropTarget() {
+    if (dropPageTab) dropPageTab.classList.remove("page-drop-target");
+    dropPageTab = null;
+  }
+  function updatePageDropTarget(d, x, y) {
+    d.dropPageId = null;
+    if (!d.spec.shortcut || !d.moved) return;
+    /* 场景标签在一次拖动中位置稳定；滚动/缩放后才重新测量。 */
+    if (!d.pageTargets) {
+      d.pageTargets = [];
+      [].slice.call($("pager").querySelectorAll(".ptab[data-id]")).forEach(function (tab) {
+        var id = tab.getAttribute("data-id");
+        var page = S.pages.filter(function (p) { return p.id === id; })[0];
+        if (page && id !== S.activePage && page.items.length < 60) {
+          d.pageTargets.push({ tab: tab, id: id, rect: tab.getBoundingClientRect() });
+        }
+      });
+    }
+    var target = null;
+    d.pageTargets.some(function (entry) {
+      var r = entry.rect;
+      if (x < r.left || x > r.right || y < r.top || y > r.bottom) return false;
+      target = entry.tab;
+      d.dropPageId = entry.id;
+      return true;
+    });
+    if (target !== dropPageTab) {
+      clearPageDropTarget();
+      dropPageTab = target;
+      if (target) target.classList.add("page-drop-target");
+    }
+  }
 
   function applyWidgetOrder() {
     var row = $("wgRow"), page = activePage();
@@ -2908,12 +3463,8 @@
       var L = layoutObj(b);
       if (!L) { el.style.display = "none"; return; }   /* 本页没有这个小组件 */
       el.style.display = "";
-      if (b.flow) {
-        el.style.left = "0px";
-        el.style.top = "0px";
-        return;
-      }
       window.LGDragPosition.apply(el, L.x, L.y);
+      el.style.zIndex = L.z ? String(L.z) : "";
     });
     applyWidgetOrder();
   }
@@ -2926,15 +3477,66 @@
   }
   function clampn(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
+  function raiseLayoutItem(el) {
+    var page = activePage(), entries = [], target = null;
+    var search = S.layout.search || (S.layout.search = { x: 0, y: 0 });
+    entries.push({ pos: search, el: $("searchWrap"), z: Number(search.z) || 20 });
+    var tiles = Object.create(null);
+    [].slice.call($("tileGrid").querySelectorAll(".tile[data-shortcut-id]")).forEach(function (tile) {
+      tiles[tile.getAttribute("data-shortcut-id")] = tile;
+    });
+    (page.items || []).forEach(function (item) {
+      item.pos = item.pos || { x: 0, y: 0, z: 0 };
+      entries.push({ pos: item.pos, el: tiles[item.id], z: Number(item.pos.z) || 0 });
+    });
+    BLOCKS.forEach(function (block) {
+      if (!block.page) return;
+      var pos = page[block.key];
+      if (pos) entries.push({ pos: pos, el: $(block.id), z: Number(pos.z) || 0 });
+    });
+    entries.forEach(function (entry) { if (entry.el === el) target = entry; });
+    if (!target) return;
+    /* 重排有限序号而非累加到 99 后并列；搜索框和卡片使用同一顺序。 */
+    entries.sort(function (a, b) { return a.z - b.z; });
+    entries.splice(entries.indexOf(target), 1);
+    entries.push(target);
+    entries.forEach(function (entry, i) {
+      entry.pos.z = i + 1;
+      if (entry.el) entry.el.style.zIndex = String(entry.pos.z);
+    });
+  }
+
+  function beginDragGlass(d) {
+    var list = [].slice.call(d.el.querySelectorAll("[data-glass]"));
+    if (d.el.hasAttribute("data-glass")) list.unshift(d.el);
+    d.liteGlass = list.filter(function (el) { return !el.__lgLite; });
+    if (d.liteGlass.length) window.LiquidGlass.lite(d.liteGlass, true);
+  }
+  function restoreDragGlass(d) {
+    if (d.liteGlass && d.liteGlass.length) window.LiquidGlass.lite(d.liteGlass, false);
+    d.liteGlass = null;
+  }
   function finishDrag(d) {
+    if (d.cleanup) d.cleanup();
     d.cx = d.tx;
     d.cy = d.ty;
     d.spec.put(d.tx, d.ty);
     window.LGDragPosition.apply(d.el, d.tx, d.ty);
+    if (d.moved && d.layoutBefore) raiseLayoutItem(d.el);
     d.el.classList.remove("dragging");
+    restoreDragGlass(d);
+    clearPageDropTarget();
     if (d.spec.end) d.spec.end(d);
+    if (d.moved && d.layoutBefore) {
+      var label = d.el.classList.contains("tile") ? "快捷卡片" :
+        d.el.closest("#wgRow") ? "小组件" : "搜索框";
+      recordLayoutUndo(label + "位置已更新", d.layoutBefore);
+    }
     dragCtx = null;
-    if (d.moved) d.spec.save();
+    if (d.moved) {
+      if (d.layoutBefore) store.save({ pages: S.pages, layout: S.layout });
+      else d.spec.save();
+    }
   }
 
   function dragStep() {
@@ -2944,15 +3546,13 @@
     var px = d.cx, py = d.cy;
 
     if (d.active) {
+      updatePageDropTarget(d, d.pointerX, d.pointerY);
       /* 按住时严格 1:1 跟手（不做弹簧插值，否则一定会"拖后腿"） */
       d.cx = d.tx;
       d.cy = d.ty;
     } else {
       /* 松手后交给欠阻尼弹簧：带惯性继续走一点，再回弹定住 */
-      d.vx = (d.vx + (d.tx - d.cx) * 0.22) * 0.80;
-      d.vy = (d.vy + (d.ty - d.cy) * 0.22) * 0.80;
-      d.cx += d.vx;
-      d.cy += d.vy;
+      window.LGDragSpring.step(d);
     }
     d.cx = clampn(d.cx, d.bn.minX, d.bn.maxX);
     d.cy = clampn(d.cy, d.bn.minY, d.bn.maxY);
@@ -2968,8 +3568,11 @@
 
     if (d.spec.frame) d.spec.frame(d);
 
+    /* 按住时只响应新的指针位置；静止不重绘，松手后才连续计算回弹。 */
+    if (d.active) return;
+
     var rest = !d.active &&
-      Math.abs(d.tx - d.cx) < 0.15 && Math.abs(d.ty - d.cy) < 0.15 && sp < 0.15;
+      window.LGDragSpring.atRest(d, sp);
     if (!rest) { dragLoop = requestAnimationFrame(dragStep); return; }
     finishDrag(d);
   }
@@ -2996,6 +3599,8 @@
       var dx = e.clientX - d.sx, dy = e.clientY - d.sy;
       if (!d.moved) {
         if (Math.hypot(dx, dy) < 3) return;
+        d.layoutBefore = d.isLayoutTarget ? layoutSnapshot() : null;
+        beginDragGlass(d);
         d.moved = true;
         el.classList.add("dragging");
         if (d.spec.start) d.spec.start(d);
@@ -3005,6 +3610,9 @@
       e.preventDefault();
       d.tx = clampn(d.o0x + dx, d.bn.minX, d.bn.maxX);
       d.ty = clampn(d.o0y + dy, d.bn.minY, d.bn.maxY);
+      d.pointerX = e.clientX;
+      d.pointerY = e.clientY;
+      d.lastMoveAt = performance.now();
       startDragLoop();
     }
     function onUp(e) {
@@ -3012,12 +3620,27 @@
       if (!d || d.el !== el) return;
       if (e && e.pointerId !== undefined && e.pointerId !== d.ptr) return;
       if (!d.active) return;
+      if (d.moved) updatePageDropTarget(d, e.clientX, e.clientY);
+      if (e.type === "pointercancel") d.dropPageId = null;
       d.active = false;
       docOff();
+      if (d.moved && d.dropPageId) {
+        var destination = d.dropPageId;
+        if (dragLoop) cancelAnimationFrame(dragLoop);
+        dragLoop = 0;
+        dragCtx = null;
+        d.el.classList.remove("dragging");
+        restoreDragGlass(d);
+        clearPageDropTarget();
+        suppressNextClick();
+        moveShortcutToPage(d.spec.shortcut, destination);
+        switchPage(destination);
+        return;
+      }
       if (d.moved) {
         suppressNextClick();
-        d.vx = d.lvx * 0.6;
-        d.vy = d.lvy * 0.6;
+        var moving = performance.now() - d.lastMoveAt < 80;
+        window.LGDragSpring.release(d, moving ? d.lvx : 0, moving ? d.lvy : 0);
       }
       startDragLoop();
     }
@@ -3026,22 +3649,35 @@
        立刻回收捕获（gotpointercapture 紧跟 lostpointercapture），
        只依赖元素上的 pointermove 会丢失后续事件。挂在 document
        捕获阶段 + pointerId 过滤，捕获是否存活都能跟手。 */
+    function invalidatePageTargets() {
+      if (dragCtx && dragCtx.el === el) {
+        dragCtx.pageTargets = null;
+        if (dragCtx.active && dragCtx.moved) startDragLoop();
+      }
+    }
     function docOn() {
       docOff();
       document.addEventListener("pointermove", onMove, true);
       document.addEventListener("pointerup", onUp, true);
       document.addEventListener("pointercancel", onUp, true);
+      document.addEventListener("scroll", invalidatePageTargets, true);
+      window.addEventListener("resize", invalidatePageTargets);
     }
     function docOff() {
       document.removeEventListener("pointermove", onMove, true);
       document.removeEventListener("pointerup", onUp, true);
       document.removeEventListener("pointercancel", onUp, true);
+      document.removeEventListener("scroll", invalidatePageTargets, true);
+      window.removeEventListener("resize", invalidatePageTargets);
     }
 
     el.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+      var handle = e.target && e.target.closest ? e.target.closest("[data-drag-handle]") : null;
+      var isLayoutTarget = el.id === "searchWrap" || el.classList.contains("tile") || !!el.closest("#wgRow");
+      if (el.id === "searchWrap" && (!layoutEdit || !handle)) return;
       var ex = spec.exclude || "input,textarea,select,button,a,[data-nodrag]";
-      if (e.target && e.target.closest && e.target.closest(ex)) return;
+      if (e.target && e.target.closest && e.target.closest(ex) && !handle) return;
       if (dragCtx) settleNow();
       var o = spec.obj();
       var r = el.getBoundingClientRect();
@@ -3049,6 +3685,7 @@
       dragCtx = {
         el: el, spec: spec, ptr: e.pointerId, active: true, moved: false,
         sx: e.clientX, sy: e.clientY, nat: nat,
+        isLayoutTarget: isLayoutTarget, layoutBefore: null, cleanup: docOff,
         o0x: o.x, o0y: o.y,
         bn: spec.bounds(nat, nat.w, nat.h),
         tx: o.x, ty: o.y, cx: o.x, cy: o.y, vx: 0, vy: 0, lvx: 0, lvy: 0
@@ -3056,9 +3693,6 @@
       docOn();
       try { el.setPointerCapture(e.pointerId); } catch (err) { /* noop */ }
     });
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onUp);
   }
 
   function blockSpec(b) {
@@ -3070,71 +3704,23 @@
     };
   }
   function attachTileDrag(el, sc) {
-    var dummy = { x: 0, y: 0 };   /* 拖动数学只借一个可变对象，网格模式下不落盘位移 */
     attachDrag(el, {
+      shortcut: sc,
       exclude: "button,a,[data-nodrag],.menu",
-      obj: function () { return dummy; },
+      obj: function () { return sc.pos || (sc.pos = { x: 0, y: 0 }); },
       bounds: offsetBounds,
-      put: function (x, y) { dummy.x = x; dummy.y = y; },
-      save: function () {},
-      end: sc ? function (d) { tileReorder(sc, d); } : null
+      put: function (x, y) { sc.pos.x = x; sc.pos.y = y; },
+      save: function () { store.save({ pages: S.pages }); }
     });
   }
 
-  function widgetReorder(d) {
-    var row = $("wgRow"), page = activePage();
-    if (!row || !page) return;
-    var blockByKey = {};
-    BLOCKS.forEach(function (b) { if (b.flow) blockByKey[b.key] = b; });
-    var visibleBlocks = normalizeWidgetOrder(page.widgetOrder).map(function (key) {
-      return blockByKey[key];
-    }).filter(function (b) { return b && layoutObj(b); });
-    var els = visibleBlocks.map(function (b) { return $(b.id); }).filter(function (el) {
-      return el && el.parentNode === row;
-    });
-    var from = els.indexOf(d.el);
-    var reset = function () {
-      els.forEach(function (el) { el.style.left = "0px"; el.style.top = "0px"; });
-      applyWidgetOrder();
-    };
-    if (from < 0) { reset(); return; }
-
-    var px = d.nat.l + d.cx + d.nat.w / 2;
-    var py = d.nat.t + d.cy + d.nat.h / 2;
-    var target = -1;
-    for (var i = 0; i < els.length; i++) {
-      if (i === from) continue;
-      var r = els[i].getBoundingClientRect();
-      if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
-        target = i;
-        break;
-      }
-    }
-    if (target >= 0 && target !== from) {
-      var visibleKeys = visibleBlocks.map(function (b, i) { return els[i] ? b.key : null; }).filter(function (key) { return !!key; });
-      var movedKey = visibleKeys[from];
-      visibleKeys.splice(from, 1);
-      visibleKeys.splice(target, 0, movedKey);
-
-      var visibleSet = {};
-      visibleBlocks.forEach(function (b) { visibleSet[b.key] = true; });
-      var vi = 0;
-      page.widgetOrder = normalizeWidgetOrder(page.widgetOrder).map(function (key) {
-        return visibleSet[key] ? visibleKeys[vi++] : key;
-      });
-    }
-    reset();
-  }
-
-  function attachWidgetDrag(el) {
-    var dummy = { x: 0, y: 0 };
+  function attachWidgetDrag(el, block) {
     attachDrag(el, {
       exclude: "input,textarea,select,button,a,[data-nodrag]",
-      obj: function () { dummy.x = 0; dummy.y = 0; return dummy; },
+      obj: function () { return layoutObjOrCreate(block); },
       bounds: offsetBounds,
-      put: function (x, y) { dummy.x = x; dummy.y = y; },
-      save: function () { store.save({ pages: S.pages }); },
-      end: function (d) { widgetReorder(d); }
+      put: function (x, y) { var pos = layoutObjOrCreate(block); pos.x = x; pos.y = y; },
+      save: function () { store.save({ pages: S.pages }); }
     });
   }
 
@@ -3142,7 +3728,7 @@
     BLOCKS.forEach(function (b) {
       var el = $(b.id);
       if (!el) return;
-      if (b.flow) attachWidgetDrag(el);
+      if (b.flow) attachWidgetDrag(el, b);
       else attachDrag(el, blockSpec(b));
     });
   }
@@ -3153,15 +3739,22 @@
       if (!el) return;
       var L = layoutObj(b);
       if (!L) return;
-      if (b.flow) {
-        el.style.left = "0px";
-        el.style.top = "0px";
-        return;
-      }
       var r = el.getBoundingClientRect();
       var bn = offsetBounds({ l: r.left - L.x, t: r.top - L.y }, r.width, r.height);
       L.x = clampn(L.x, bn.minX, bn.maxX);
       L.y = clampn(L.y, bn.minY, bn.maxY);
+    });
+    var page = activePage(), byId = Object.create(null);
+    (page.items || []).forEach(function (item) { byId[item.id] = item; });
+    [].slice.call($("tileGrid").querySelectorAll(".tile[data-shortcut-id]")).forEach(function (el) {
+      var item = byId[el.getAttribute("data-shortcut-id")];
+      if (!item) return;
+      item.pos = item.pos || { x: 0, y: 0 };
+      var r = el.getBoundingClientRect(), pos = item.pos;
+      var bn = offsetBounds({ l: r.left - pos.x, t: r.top - pos.y }, r.width, r.height);
+      pos.x = clampn(pos.x, bn.minX, bn.maxX);
+      pos.y = clampn(pos.y, bn.minY, bn.maxY);
+      window.LGDragPosition.apply(el, pos.x, pos.y);
     });
     applyWidgetOrder();
     applyLayout();
@@ -3202,17 +3795,53 @@
     var box = $("weatherCities"); if (!box || !S) return; box.textContent = "";
     (S.weatherCities || []).forEach(function (city) { var row = document.createElement("div"); row.className = "weather-city-row"; var b = document.createElement("button"); b.type = "button"; b.className = city.id === S.weatherActiveId ? "on" : ""; b.textContent = city.n; b.addEventListener("click", function () { chooseWeatherCity(city.id); syncSettings(); }); row.appendChild(b); if (city.source !== "preset") { var del = document.createElement("button"); del.type = "button"; del.textContent = "×"; del.title = "移除城市"; del.addEventListener("click", function () { if (S.weatherCities.length <= 1) return; S.weatherCities = S.weatherCities.filter(function (x) { return x.id !== city.id; }); if (S.weatherActiveId === city.id) S.weatherActiveId = S.weatherCities[0].id; S.city = { n: S.weatherCities[0].n, lat: S.weatherCities[0].lat, lon: S.weatherCities[0].lon }; store.save({ weatherCities: S.weatherCities, weatherActiveId: S.weatherActiveId, city: S.city }); syncSettings(); loadWeather(); }); row.appendChild(del); } box.appendChild(row); });
   }
+  function renderWallLibrary() {
+    var box = $("wallLib"); if (!box || !S) return; box.textContent = "";
+    (S.wall.library || []).forEach(function (item) {
+      var b = document.createElement("div");
+      b.className = "wlib" + (item.id === S.wall.activeId ? " on" : "");
+      var thumb = item.kind === "image" ? item.data : (item.url || item.data);
+      if (thumb) b.style.backgroundImage = 'url("' + String(thumb).replace(/["\\]/g, "") + '")';
+      b.title = (item.name || item.url || "自定义壁纸") + " · 点击应用";
+      if (item.kind === "video") { var badge = document.createElement("span"); badge.className = "vid"; badge.textContent = "▶"; b.appendChild(badge); }
+      var nm = document.createElement("span"); nm.className = "nm";
+      nm.textContent = item.name || hostOf(item.url || "") || (item.kind === "video" ? "视频" : "图片");
+      b.appendChild(nm);
+      var del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "×"; del.title = "删除该壁纸";
+      del.addEventListener("click", function (ev) { ev.stopPropagation(); deleteWallItem(item.id); });
+      b.appendChild(del);
+      b.addEventListener("click", function () { applyWallItem(item); toast("已切换壁纸"); });
+      box.appendChild(b);
+    });
+  }
+  function applyGlassProfile(profile, applyPresetValues) {
+    var name = ["clear", "balanced", "readable"].indexOf(profile) >= 0 ? profile : "custom";
+    S.glass.profile = name;
+    if (applyPresetValues && GLASS_PRESETS[name]) {
+      S.glass.band = GLASS_PRESETS[name].band;
+      S.glass.str = GLASS_PRESETS[name].str;
+      S.glass.disp = GLASS_PRESETS[name].disp;
+    }
+    document.documentElement.setAttribute("data-glass-profile", name);
+    window.LiquidGlass.set({ band: S.glass.band, str: S.glass.str, disp: S.glass.disp });
+    schedDrops();
+    store.save({ glass: S.glass });
+    syncSettings();
+  }
+
   function buildSettings() {
     /* 壁纸色板 */
     var walls = $("walls");
     walls.textContent = "";
     WALLS.forEach(function (w) {
-      var b = document.createElement("div");
+      var b = document.createElement("button");
+      b.type = "button";
       b.className = "sw";
-      b.style.backgroundImage = w.css;
+      b.style.backgroundImage = w.preview;
       b.title = w.name;
+      b.setAttribute("aria-label", w.name);
       b.addEventListener("click", function () {
-        S.wall.mode = "preset"; S.wall.id = w.id;
+        S.wall.mode = "preset"; S.wall.id = w.id; S.wall.activeId = "";
         store.save({ wall: S.wall });
         applyWall(); syncSettings();
       });
@@ -3286,7 +3915,10 @@
     $("wallFile").addEventListener("change", function () {
       var f = this.files && this.files[0]; this.value = ""; if (!f) return;
       if (f.size > 25 * 1024 * 1024) { toast("本地壁纸文件不能超过 25MB"); return; }
-      var rd = new FileReader(); rd.onload = function () { S.wall.fileData = String(rd.result); S.wall.fileType = f.type; S.wall.mode = /^video\//i.test(f.type) ? "video" : "local"; store.save({ wall: S.wall }); applyWall(); syncSettings(); toast("已加载本地壁纸"); }; rd.readAsDataURL(f);
+      var rd = new FileReader(); rd.onload = function () {
+        var item = addWallToLibrary({ kind: /^video\//i.test(f.type) ? "video" : "image", data: String(rd.result), name: String(f.name || "本地壁纸").slice(0, 60) });
+        if (item) { applyWallItem(item); toast("已加入壁纸库并应用"); }
+      }; rd.readAsDataURL(f);
     });
     $("wallRotation").addEventListener("change", function () { S.wall.rotation = this.value; store.save({ wall: S.wall }); applyWall(); });
     ["customCss", "fontUrl", "fontFamily"].forEach(function (id) { $(id).addEventListener("change", function () { S.wall[id] = this.value.slice(0, id === "customCss" ? 12000 : 1000); store.save({ wall: S.wall }); applyWall(); }); });
@@ -3385,6 +4017,7 @@
     [].slice.call(wm.querySelectorAll("button")).forEach(function (b) {
       b.addEventListener("click", function () {
         S.wall.mode = b.getAttribute("data-m");
+        if (S.wall.mode === "preset" || S.wall.mode === "url" || S.wall.mode === "video") S.wall.activeId = "";
         store.save({ wall: S.wall });
         syncSettings();
         if (S.wall.mode === "bing") loadBingWall();
@@ -3394,9 +4027,8 @@
     $("wallUrl").addEventListener("change", function () {
       var v = this.value.trim();
       if (!v) return;
-      S.wall.url = v; S.wall.mode = /\.(?:mp4|webm|ogg)(?:[?#].*)?$/i.test(v) ? "video" : "url";
-      store.save({ wall: S.wall });
-      syncSettings(); applyWall();
+      var item = addWallToLibrary({ kind: /\.(?:mp4|webm|ogg)(?:[?#].*)?$/i.test(v) ? "video" : "url", url: v, name: hostOf(v) || v });
+      if (item) { applyWallItem(item); toast("已加入壁纸库并应用"); }
     });
 
     /* 玻璃参数滑块 */
@@ -3405,6 +4037,8 @@
       el.addEventListener("input", function () {
         var v = parseFloat(el.value);
         S.glass[key] = v;
+        S.glass.profile = "custom";
+        document.documentElement.setAttribute("data-glass-profile", "custom");
         o.textContent = fx(v);
         var patch = {};
         patch[key] = v;
@@ -3419,6 +4053,9 @@
     bindGlass("pStr", "vStr", "str", function (v) { return v.toFixed(2); });
     bindGlass("pBand", "vBand", "band", function (v) { return v.toFixed(2); });
     bindGlass("pDisp", "vDisp", "disp", function (v) { return v.toFixed(1); });
+    [].slice.call($("glassProfiles").querySelectorAll("button")).forEach(function (b) {
+      b.addEventListener("click", function () { applyGlassProfile(b.getAttribute("data-profile"), true); });
+    });
 
     $("pTex").addEventListener("input", function () {
       S.tex = parseFloat(this.value);
@@ -3428,18 +4065,7 @@
       bindGlass._t2 = setTimeout(function () { store.save({ tex: S.tex }); }, 400);
     });
 
-    $("btnResetLayout").addEventListener("click", function () {
-      S.layout = { search: { x: 0, y: 0 }, tiles: { x: 0, y: 0 }, todo: { x: 0, y: 0 }, weather: { x: 0, y: 0 } };
-      S.pages.forEach(function (p) {
-        ["cal", "todo", "note", "cd"].forEach(function (k) {
-          if (p[k]) p[k] = { x: 0, y: 0 };   /* 已开启的小组件摆位归零（不改变开关状态） */
-        });
-      });
-      store.save({ layout: S.layout, pages: S.pages });
-      applyLayout();
-      reflowLayout();
-      toast("模块位置已复位");
-    });
+    $("btnResetLayout").addEventListener("click", resetInitialLayout);
 
     $("btnReset").addEventListener("click", function () {
       S = defaults();
@@ -3447,8 +4073,26 @@
       location.reload();
     });
   }
+  function resetInitialLayout() {
+    settleNow();
+    var before = layoutSnapshot();
+    S.layout = { search: { x: 0, y: 0 }, tiles: { x: 0, y: 0 }, todo: { x: 0, y: 0 }, weather: { x: 0, y: 0 } };
+    S.pages.forEach(function (p) {
+      p.items.forEach(function (item) { item.pos = { x: 0, y: 0, z: 0 }; });
+      p.tileSize = "medium";
+      p.widgetOrder = WIDGET_KEYS.slice();
+      WIDGET_KEYS.forEach(function (key) {
+        if (p[key]) p[key] = { x: 0, y: 0, z: 0 };
+      });
+    });
+    store.save({ layout: S.layout, pages: S.pages });
+    applyLayout();
+    renderTiles();
+    recordLayoutUndo("已恢复所有场景的默认初始排版", before);
+  }
   function syncSettings() {
     var g = S.glass;
+    document.documentElement.setAttribute("data-glass-profile", g.profile || "balanced");
     $("pStr").value = g.str;  $("vStr").textContent = g.str.toFixed(2);
     $("pBand").value = g.band; $("vBand").textContent = g.band.toFixed(2);
     $("pDisp").value = g.disp; $("vDisp").textContent = g.disp.toFixed(1);
@@ -3458,9 +4102,14 @@
     $("customCss").value = S.wall.customCss || "";
     $("fontUrl").value = S.wall.fontUrl || "";
     $("fontFamily").value = S.wall.fontFamily || "";
+    [].slice.call($("glassProfiles").children).forEach(function (b) {
+      b.classList.toggle("on", b.getAttribute("data-profile") === g.profile);
+    });
 
     [].slice.call($("walls").children).forEach(function (b, i) {
-      b.classList.toggle("on", S.wall.mode === "preset" && WALLS[i].id === S.wall.id);
+      var selected = S.wall.mode === "preset" && WALLS[i].id === S.wall.id;
+      b.classList.toggle("on", selected);
+      b.setAttribute("aria-pressed", selected ? "true" : "false");
     });
     [].slice.call($("citySeg").children).forEach(function (b, i) {
       b.classList.toggle("on", !S.geo && S.weatherActiveId === cityId(CITIES[i]));
@@ -3476,7 +4125,7 @@
     });
     [].slice.call($("syncSeg").children).forEach(function (b) { b.classList.toggle("on", (b.getAttribute("data-sync") === "on") === (S.syncEnabled !== false)); });
     $("syncState").textContent = S.syncEnabled === false ? "已关闭" : (HAS_CHROME && chrome.storage.sync ? "使用浏览器同步存储" : "预览模式不支持同步");
-    renderEngineSettings(); renderWeatherCities(); renderCalendarSources();
+    renderEngineSettings(); renderWeatherCities(); renderCalendarSources(); renderWallLibrary();
     [["calSeg", "cal"], ["todoSeg", "todo"], ["noteSeg", "note"], ["cdSeg", "cd"]].forEach(function (pr) {
       [].slice.call($(pr[0]).children).forEach(function (b) {
         b.classList.toggle("on", (b.getAttribute("data-c") === "on") === !!activePage()[pr[1]]);
@@ -3495,6 +4144,12 @@
       e.preventDefault();
       smenuHide();
       go($("q").value);
+    });
+    $("layoutEditToggle").addEventListener("click", function () { setLayoutEdit(!layoutEdit); });
+    $("layoutEditDone").addEventListener("click", function () { setLayoutEdit(false); });
+    $("layoutUndo").addEventListener("click", undoLayoutChange);
+    [].slice.call($("tileSizeSeg").querySelectorAll("button")).forEach(function (b) {
+      b.addEventListener("click", function () { setTileSize(b.getAttribute("data-size")); });
     });
     $("engineBtn").addEventListener("click", function () { toggleEngineMenu(); });
     $("tileBatchToggle").addEventListener("click", toggleShortcutBatch);
@@ -3614,6 +4269,7 @@
       window.LiquidGlass.set({
         band: S.glass.band, str: S.glass.str, disp: S.glass.disp, blur: S.glass.blur
       });
+      document.documentElement.setAttribute("data-glass-profile", S.glass.profile || "balanced");
       document.body.classList.toggle("drops-off", !S.drops);
 
       $("engineName").textContent = currentEngine().name;

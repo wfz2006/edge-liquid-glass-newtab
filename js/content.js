@@ -190,13 +190,16 @@
         catch (e) { done(null, e, authoritative); return; }
         var current = Array.isArray(latest.sidebar) ? latest.sidebar : [];
         var result;
-        try { result = mutator(current); }
+        try { result = mutator(current, latest); }
         catch (e) { done(null, e, authoritative); return; }
         if (!result || !result.changed) {
           done(mutationApplied ? appliedResult : result, null, latest);
           return;
         }
         latest.sidebar = result.sidebar;
+        if (result.patch && typeof result.patch === "object") {
+          Object.keys(result.patch).forEach(function (key) { latest[key] = result.patch[key]; });
+        }
         readStoredState(function (beforeWrite, compareError) {
           if (compareError) { done(null, compareError, authoritative); return; }
           if (beforeWrite.stamp !== snapshot.stamp) {
@@ -253,6 +256,7 @@
     if (!it || typeof it !== "object") return;
     it = CORE.normalizeItem(it, uid());
     it.id = uid();
+    if (!it.sceneId) it.sceneId = st.activePage || "";
     if (it.type === "image" && it.src) it.src = resolveImageURL(it.src);
     normalizeStoredImage(it);
     if (it.type === "link" && st.sidebar.some(function (old) { return CORE.sameLink(old, it); })) return false;
@@ -265,6 +269,48 @@
     render();
     persistImage(it);
     return true;
+  }
+  function collectionWorkflow(id, action) {
+    mutateSidebar(function (items, state) {
+      var item = items.filter(function (x) { return x && x.id === id; })[0];
+      if (!item) return { sidebar: items, changed: false };
+      var patch = {}, message = "已更新收藏";
+      if (action === "later" || action === "task") {
+        var todos = Array.isArray(state.todos) ? state.todos.slice() : [];
+        var exists = todos.some(function (t) { return t && t.sourceId === item.id && !t.done && !t.archived; });
+        if (!exists) {
+          var title = item.title || (item.url ? hostOf(item.url) : item.type === "image" ? "图片收藏" : "收藏内容");
+          todos.unshift({ id: uid(), t: (action === "later" ? "稍后阅读：" : "处理收藏：") + title,
+            done: false, due: "", priority: "normal", repeat: "none", remind: false, archived: false,
+            sourceId: item.id, sourceUrl: item.url || "", sceneId: state.activePage || item.sceneId || "",
+            createdAt: Date.now(), notifiedAt: "" });
+          if (todos.length > 100) todos.length = 100;
+          patch.todos = todos;
+        }
+        if (action === "later") { item.readState = "later"; message = "已加入稍后阅读和当前场景待办"; }
+        else message = exists ? "这项收藏已在待办里" : "已加入当前场景待办";
+      } else if (action === "pin") {
+        item.pinned = !item.pinned;
+        if (item.pinned) item.sceneId = state.activePage || item.sceneId || "";
+        message = item.pinned ? "已固定到首页" : "已从首页取消固定";
+      } else if (action === "archive") {
+        item.readState = item.readState === "done" ? "inbox" : "done";
+        if (item.readState === "done" && Array.isArray(state.todos)) {
+          patch.todos = state.todos.map(function (todo) {
+            if (!todo || todo.sourceId !== item.id) return todo;
+            var next = {}; Object.keys(todo).forEach(function (key) { next[key] = todo[key]; }); next.done = true; return next;
+          });
+        }
+        message = item.readState === "done" ? "已归档收藏" : "已移出归档";
+      } else if (action === "snooze") {
+        item.readState = "snoozed"; message = "这项收藏暂时不会出现在随便翻翻里";
+      }
+      return { sidebar: items, patch: patch, changed: true, message: message };
+    }, function (result, error) {
+      if (error) { showNotice("保存失败，请稍后重试"); return; }
+      render();
+      if (result && result.message) showNotice(result.message);
+    });
   }
   function delItem(id) {
     st.sidebar = st.sidebar.filter(function (x) { return x.id !== id; });
@@ -369,6 +415,13 @@
   background:rgba(235,247,255,.12);border:1px solid rgba(225,244,255,.18);opacity:0;transition:opacity .2s}
 .sbcard:hover .del{opacity:1}
 .del:hover{background:rgba(171,218,255,.18);border-color:rgba(225,245,255,.42)}
+.sbcard .sbmore{position:absolute;top:8px;right:36px;width:22px;height:22px;border-radius:50%;z-index:4;display:flex;align-items:center;justify-content:center;border:1px solid rgba(225,244,255,.18);background:rgba(235,247,255,.12);color:#fff;opacity:0;cursor:pointer}
+.sbcard:hover .sbmore{opacity:1}
+.sbcard .sbactions{display:none;position:relative;top:auto;right:auto;z-index:6;min-width:136px;margin-top:7px;padding:5px;border:1px solid rgba(225,244,255,.34);border-radius:11px;background:rgba(7,16,31,.96);box-shadow:0 12px 28px rgba(0,0,0,.42)}
+.sbcard .sbactions.open{display:flex;flex-direction:column;gap:2px}
+.sbcard .sbactions button{min-height:28px;padding:4px 7px;border:0;border-radius:7px;background:transparent;color:rgba(249,253,255,.92);text-align:left;font:inherit;font-size:10px;cursor:pointer}
+.sbcard .sbactions button:hover{background:rgba(171,218,255,.16)}
+.sbstate{display:inline-flex;align-self:flex-start;margin-top:7px;padding:2px 7px;border:1px solid rgba(225,244,255,.16);border-radius:999px;background:rgba(7,15,31,.34);color:rgba(234,244,255,.74);font-size:9px}
 .notice{position:absolute;left:14px;right:14px;bottom:42px;z-index:8;display:flex;align-items:center;gap:8px;
   padding:8px 11px;border-radius:12px;color:rgba(255,255,255,.9);background:rgba(8,22,44,.88);
   border:1px solid rgba(185,224,255,.34);box-shadow:0 10px 30px rgba(2,8,24,.32);font-size:11.5px}
@@ -417,7 +470,7 @@
   var noticeTimer = 0;
   var searchInput = sh.querySelector(".search");
   var filterButtons = [].slice.call(sh.querySelectorAll(".filter"));
-  var dragCard = null, suppressCardClickUntil = 0;
+  var dragCard = null, dragFrame = 0, suppressCardClickUntil = 0;
 
   searchInput.addEventListener("input", function () {
     searchQuery = this.value;
@@ -643,8 +696,8 @@
     }
     function buildFilter(id, href, strength, disp) {
       var f = document.createElementNS(NS, "filter");
-      f.setAttribute("id", id); f.setAttribute("x", "0%"); f.setAttribute("y", "0%");
-      f.setAttribute("width", "100%"); f.setAttribute("height", "100%");
+      f.setAttribute("id", id); f.setAttribute("x", "-25%"); f.setAttribute("y", "-25%");
+      f.setAttribute("width", "150%"); f.setAttribute("height", "150%");
       f.setAttribute("color-interpolation-filters", "sRGB");
       var fi = document.createElementNS(NS, "feImage");
       fi.setAttribute("href", href); fi.setAttributeNS(XL, "xlink:href", href);
@@ -654,8 +707,8 @@
       f.appendChild(fi);
       var S = Math.max(1, strength * 2);
       [["R", 1.00, "1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"],
-       ["G", 1 - disp * 0.15, "0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"],
-       ["B", 1 - disp * 0.28, "0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"]].forEach(function (c) {
+       ["G", 1 - disp * 0.05, "0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"],
+       ["B", 1 - disp * 0.10, "0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"]].forEach(function (c) {
         var dm = document.createElementNS(NS, "feDisplacementMap");
         dm.setAttribute("in", "SourceGraphic"); dm.setAttribute("in2", "map");
         dm.setAttribute("scale", String(S * c[1]));
@@ -675,8 +728,8 @@
     }
     function buildFilterLite(id, href, strength) {
       var f = document.createElementNS(NS, "filter");
-      f.setAttribute("id", id); f.setAttribute("x", "0%"); f.setAttribute("y", "0%");
-      f.setAttribute("width", "100%"); f.setAttribute("height", "100%");
+      f.setAttribute("id", id); f.setAttribute("x", "-25%"); f.setAttribute("y", "-25%");
+      f.setAttribute("width", "150%"); f.setAttribute("height", "150%");
       f.setAttribute("color-interpolation-filters", "sRGB");
       var fi = document.createElementNS(NS, "feImage");
       fi.setAttribute("href", href); fi.setAttributeNS(XL, "xlink:href", href);
@@ -711,7 +764,7 @@
         var cs = getComputedStyle(el);
         var radius = num(cs.borderTopLeftRadius, 0), short = Math.min(W, H);
         var band = Math.max(3, Math.min(short * num(el.getAttribute("data-lg-band"), DEF.band), 26));
-        var strength = Math.max(3, short * num(el.getAttribute("data-lg-str"), DEF.str));
+        var strength = Math.max(3, Math.min(10, short * num(el.getAttribute("data-lg-str"), DEF.str)));
         var disp = num(el.getAttribute("data-lg-disp"), DEF.disp);
         if (!SUPPORTED) {
           if (el.__lgId !== "fallback") {
@@ -774,7 +827,7 @@
 
   function cardDragMove(e) {
     var d = dragCard;
-    if (!d || e.pointerId !== d.pointerId) return;
+    if (!d || !d.active || e.pointerId !== d.pointerId) return;
     var dx = e.clientX - d.sx;
     var dy = e.clientY - d.sy + (canvas.scrollTop - d.scrollTop);
     if (!d.moved) {
@@ -792,24 +845,88 @@
     if (need > d.stage.offsetHeight) d.stage.style.height = need + "px";
     var maxY = Math.max(10, d.stage.scrollHeight - d.el.offsetHeight - 12);
     y = Math.min(y, maxY);
+    d.lvx = x - d.cx;
+    d.lvy = y - d.cy;
+    d.cx = x;
+    d.cy = y;
+    d.tx = x;
+    d.ty = y;
     d.item.x = x;
     d.item.y = y;
     d.el.style.left = x + "px";
     d.el.style.top = y + "px";
   }
+  function finishCardDrag(d) {
+    if (!d) return;
+    cardDragDocOff();
+    if (d.moved) saveSidebar();
+    d.el.classList.remove("dragging", "settling");
+    try { d.el.releasePointerCapture(d.pointerId); } catch (err) {}
+    if (dragCard === d) dragCard = null;
+  }
+  function cardDragDocOn() {
+    cardDragDocOff();
+    document.addEventListener("pointermove", cardDragMove, true);
+    document.addEventListener("pointerup", cardDragEnd, true);
+    document.addEventListener("pointercancel", cardDragEnd, true);
+  }
+  function cardDragDocOff() {
+    document.removeEventListener("pointermove", cardDragMove, true);
+    document.removeEventListener("pointerup", cardDragEnd, true);
+    document.removeEventListener("pointercancel", cardDragEnd, true);
+  }
+  function cardDragStep() {
+    dragFrame = 0;
+    var d = dragCard;
+    if (!d || d.active) return;
+    var speed = window.LGDragSpring.step(d);
+    var maxX = Math.max(10, d.stage.clientWidth - d.el.offsetWidth - 10);
+    var maxY = Math.max(10, d.stage.scrollHeight - d.el.offsetHeight - 12);
+    d.cx = Math.max(10, Math.min(d.cx, maxX));
+    d.cy = Math.max(10, Math.min(d.cy, maxY));
+    d.item.x = d.cx;
+    d.item.y = d.cy;
+    d.el.style.left = d.cx.toFixed(2) + "px";
+    d.el.style.top = d.cy.toFixed(2) + "px";
+    if (!window.LGDragSpring.atRest(d, speed)) {
+      dragFrame = window.requestAnimationFrame(cardDragStep);
+      return;
+    }
+    d.cx = d.tx;
+    d.cy = d.ty;
+    d.item.x = d.cx;
+    d.item.y = d.cy;
+    d.el.style.left = d.cx + "px";
+    d.el.style.top = d.cy + "px";
+    finishCardDrag(d);
+  }
+  function startCardDragSettle() {
+    if (!dragFrame) dragFrame = window.requestAnimationFrame(cardDragStep);
+  }
   function cardDragEnd(e) {
     var d = dragCard;
     if (!d || (e && e.pointerId !== undefined && e.pointerId !== d.pointerId)) return;
-    if (d.moved) {
-      suppressCardClickUntil = Date.now() + 260;
-      saveSidebar();
-    }
-    d.el.classList.remove("dragging");
+    if (!d.active) return;
+    d.active = false;
     try { d.el.releasePointerCapture(d.pointerId); } catch (err) {}
-    dragCard = null;
+    if (!d.moved) {
+      finishCardDrag(d);
+      return;
+    }
+    suppressCardClickUntil = Date.now() + 260;
+    window.LGDragSpring.release(d, d.lvx, d.lvy);
+    d.el.classList.remove("dragging");
+    d.el.classList.add("settling");
+    startCardDragSettle();
   }
   function beginCardDrag(e, item, el) {
-    if (dragCard) cardDragEnd();
+    if (dragCard) {
+      if (dragFrame) {
+        window.cancelAnimationFrame(dragFrame);
+        dragFrame = 0;
+      }
+      finishCardDrag(dragCard);
+    }
     var stage = el.parentNode;
     dragCard = {
       item: item,
@@ -819,15 +936,22 @@
       sx: e.clientX,
       sy: e.clientY,
       scrollTop: canvas.scrollTop,
-      moved: false
+      moved: false,
+      active: true,
+      cx: typeof item.x === "number" ? item.x : 10,
+      cy: typeof item.y === "number" ? item.y : 10,
+      tx: typeof item.x === "number" ? item.x : 10,
+      ty: typeof item.y === "number" ? item.y : 10,
+      vx: 0,
+      vy: 0,
+      lvx: 0,
+      lvy: 0
     };
     dragCard.x0 = typeof item.x === "number" ? item.x : 10;
     dragCard.y0 = typeof item.y === "number" ? item.y : 10;
+    cardDragDocOn();
     try { el.setPointerCapture(e.pointerId); } catch (err) {}
   }
-  sh.addEventListener("pointermove", cardDragMove, true);
-  sh.addEventListener("pointerup", cardDragEnd, true);
-  sh.addEventListener("pointercancel", cardDragEnd, true);
 
   /* ---------------- 渲染 ---------------- */
   function letterSkin(el, host2) {
@@ -889,7 +1013,17 @@
         }).join("") + '</div>';
       }
       if (it.type === "text" && it.text) html += '<div class="note">' + esc(it.text) + '</div>';
-      html += '<div class="del" title="删除">×</div>';
+      var stateLabel = it.readState === "later" ? "稍后看" : it.readState === "done" ? "已归档" : it.readState === "snoozed" ? "暂不重访" : "";
+      if (stateLabel) html += '<span class="sbstate">' + esc(stateLabel) + '</span>';
+      html += '<button type="button" class="del" title="删除" aria-label="删除收藏">×</button>';
+      html += '<button type="button" class="sbmore" title="收藏操作" aria-label="收藏操作">⋯</button>';
+      html += '<div class="sbactions">' +
+        '<button type="button" data-action="later">稍后看 · 加入待办</button>' +
+        '<button type="button" data-action="task">加入当前场景待办</button>' +
+        '<button type="button" data-action="pin">' + (it.pinned ? "取消固定到首页" : "固定到首页") + '</button>' +
+        '<button type="button" data-action="archive">' + (it.readState === "done" ? "移出归档" : "归档收藏") + '</button>' +
+        '<button type="button" data-action="snooze">暂不重访</button>' +
+        '</div>';
       el.innerHTML = html;
 
       var favImg = el.querySelector(".ic img");
@@ -904,14 +1038,27 @@
           ev.stopPropagation();
           delItem(it.id);
         });
+        var more = el.querySelector(".sbmore"), actions = el.querySelector(".sbactions");
+        if (more) more.addEventListener("click", function (ev) {
+          ev.preventDefault(); ev.stopPropagation();
+          if (actions) actions.classList.toggle("open");
+        });
+        if (actions) actions.addEventListener("click", function (ev) {
+          var button = ev.target && ev.target.closest ? ev.target.closest("button[data-action]") : null;
+          if (!button) return;
+          ev.preventDefault(); ev.stopPropagation();
+          actions.classList.remove("open");
+          collectionWorkflow(it.id, button.getAttribute("data-action"));
+        });
         el.addEventListener("pointerdown", function (ev) {
           var target = ev.target;
-          if (target && target.closest && target.closest(".del, img.thumb")) return;
+          if (target && target.closest && target.closest(".del,.sbmore,.sbactions, img.thumb")) return;
           if (ev.pointerType === "mouse" && ev.button !== 0) return;
           beginCardDrag(ev, it, el);
         });
       }
       el.addEventListener("click", function (ev) {
+        if (ev.target && ev.target.closest && ev.target.closest(".del,.sbmore,.sbactions")) return;
         if (batchMode) {
           ev.preventDefault();
           ev.stopPropagation();

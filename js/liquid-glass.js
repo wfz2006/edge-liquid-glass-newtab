@@ -2,7 +2,7 @@
    Liquid Glass 折射引擎（无依赖，MV3 安全：不依赖任何内联脚本）
    ------------------------------------------------------------
    原理：
-   1) Canvas 逐像素求圆角矩形 SDF，取边缘法线做「向内」位移，
+   1) Canvas 生成内部透镜位移，并沿圆角矩形 SDF 平滑过渡到边缘法线，
       把 x/y 位移编码进 R/G 通道（0.5 为原点，故 feDisplacementMap 的
       scale 必须取 2×位移量，才能保证通道值落在 [0,1]）；B 通道存边缘遮罩。
    2) 贴图经 feImage 进入 SVG 滤镜，由 3 路 feDisplacementMap（scale
@@ -21,6 +21,11 @@
 
   var ROOT = document.documentElement;
   var DEF = { band: 0.16, str: 0.22, disp: 1, blur: 2.4 };
+  var PROFILE_SCALE = {
+    clear: { display: [1.22, 1.06, 1.15], operation: [1, 1, 1], reading: [0.48, 0.88, 0.34] },
+    balanced: { display: [1.12, 1, 1], operation: [0.9, 0.92, 0.86], reading: [0.34, 0.78, 0.22] },
+    readable: { display: [1.08, 1, 0.9], operation: [0.74, 0.9, 0.64], reading: [0.16, 0.66, 0.12] }
+  };
 
   var defs = null, uid = 0, owner = {}, els = [], rafId = 0, sizeKey = "";
 
@@ -28,6 +33,11 @@
   function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
   function ss(a, b, t) { t = (t - a) / (b - a); t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
   function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function glassRole(el) {
+    var role = el.getAttribute("data-lg-role");
+    if (role === "display" || role === "reading" || role === "operation") return role;
+    return el.matches && el.matches(".calwrap,.todo,.note,.cd,.feature-box,.sheetbox,.dlgbox,.sbcard,.sbRefr") ? "reading" : "operation";
+  }
   function rrSDF(px, py, hw, hh, r) {
     var qx = Math.abs(px) - hw + r, qy = Math.abs(py) - hh + r;
     return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r;
@@ -44,6 +54,7 @@
     var S = Math.max(1, strength * 2);
     var inner = band * 0.42;
     var hw = W / 2, hh = H / 2, R = clamp(radius, 0, Math.min(hw, hh));
+    var bodyStrength = Math.min(strength * 0.75, Math.min(W, H) * 0.08);
     for (var y = 0; y < mh; y++) {
       var py = (y + 0.5) / mh * H - hh;
       for (var x = 0; x < mw; x++) {
@@ -54,9 +65,13 @@
         var gy = rrSDF(px, py + e, hw, hh, R) - rrSDF(px, py - e, hw, hh, R);
         var L = Math.hypot(gx, gy) || 1;
         gx /= L; gy /= L;
+        /* 中部也向光学中心采样，形成可见的透镜放大；此前 m=0 使整片内部
+           完全不偏折。与边缘法线平滑混合，保持中心不平移、取样不越过边界。 */
+        var dx = (px / hw) * bodyStrength * (1 - m) + gx * m * strength;
+        var dy = (py / hh) * bodyStrength * (1 - m) + gy * m * strength;
         var i = (y * mw + x) * 4;
-        im.data[i] = clamp(Math.round(255 * (0.5 - gx * m * strength / S)), 0, 255);
-        im.data[i + 1] = clamp(Math.round(255 * (0.5 - gy * m * strength / S)), 0, 255);
+        im.data[i] = clamp(Math.round(255 * (0.5 - dx / S)), 0, 255);
+        im.data[i + 1] = clamp(Math.round(255 * (0.5 - dy / S)), 0, 255);
         im.data[i + 2] = clamp(Math.round(255 * m), 0, 255);
         im.data[i + 3] = 255;
       }
@@ -83,9 +98,11 @@
     f.appendChild(fi);
 
     var S = Math.max(1, strength * 2);
+    /* 色散取原来的一半：R/B 差速过大时，高频照片背景会被撕成整块红蓝重影；
+       渐变壁纸上的棱线观感保留，只是 photorealistic 壁纸不再炸开 */
     [["R", 1.00, "1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"],
-     ["G", 1 - disp * 0.15, "0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"],
-     ["B", 1 - disp * 0.28, "0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"]].forEach(function (c) {
+     ["G", 1 - disp * 0.05, "0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0"],
+     ["B", 1 - disp * 0.10, "0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0"]].forEach(function (c) {
       var dm = document.createElementNS(NS, "feDisplacementMap");
       dm.setAttribute("in", "SourceGraphic"); dm.setAttribute("in2", "map");
       dm.setAttribute("scale", String(S * c[1]));
@@ -158,8 +175,9 @@
     while (defs.firstChild) defs.removeChild(defs.firstChild);
   }
 
-  function render() {
-    rafId = 0;
+  function render(only) {
+    var partial = Array.isArray(only);
+    if (!partial) rafId = 0;
     if (!defs) defs = document.getElementById("glass-defs");
     if (!defs) return;
 
@@ -169,8 +187,11 @@
 
     /* 参数变化：只回收本引擎自己登记的滤镜，
        外部用 LiquidGlass.rawFilter() 钉住的滤镜（如液态水滴）不受影响 */
-    var key = [BAND, STR, DISP].join("|");
+    var profile = ROOT.getAttribute ? (ROOT.getAttribute("data-glass-profile") || "balanced") : "balanced";
+    var scales = PROFILE_SCALE[profile] || PROFILE_SCALE.balanced;
+    var key = [BAND, STR, DISP, profile].join("|");
     if (key !== sizeKey) {
+      partial = false; // 参数变化时仍需更新所有材质。
       sizeKey = key;
       Object.keys(owner).forEach(function (fid) {
         var n = document.getElementById(fid);
@@ -181,24 +202,34 @@
     }
 
     var used = {};
-    for (var n = 0; n < els.length; n++) {
-      var el = els[n];
+    if (partial) els.forEach(function (el) {
+      if (el.isConnected && el.__lgId) used[el.__lgId] = 1;
+    });
+    var targets = partial ? only : els;
+    for (var n = 0; n < targets.length; n++) {
+      var el = targets[n];
       if (!el.isConnected) continue;
-      var rect = el.getBoundingClientRect();
-      var W = Math.round(rect.width), H = Math.round(rect.height);
+      /* SVG 使用元素局部坐标；祖先的开场缩放不能缩小贴图，
+         否则动画结束后右侧/底部会留下未覆盖的折射接缝。 */
+      var W = el.offsetWidth, H = el.offsetHeight;
       if (W < 10 || H < 10) continue;                       /* 隐藏元素跳过 */
 
       var cs = getComputedStyle(el);
       var radius = num(cs.borderTopLeftRadius, 0);
       var short = Math.min(W, H);
+      var roleScale = scales[glassRole(el)] || scales.operation;
       /* 每元素可覆盖：data-lg-band / data-lg-str / data-lg-disp，
          大面板用小比例（否则折射强度按短边等比放大后会失真） */
       /* 折射带加绝对上限：大元素若按比例算带（如 0.29×160=46px），位移被摊薄在宽带里，
          棱边感会被稀释成柔和扭曲；钳到与小元素同量级后，同等位移压缩进窄带，
          边缘密度翻倍，所有玻璃都有小元素那种「彩虹棱线」观感 */
-      var band = Math.max(3, Math.min(short * num(el.getAttribute("data-lg-band"), BAND), 26));
-      var strength = Math.max(3, short * num(el.getAttribute("data-lg-str"), STR));
-      var disp = num(el.getAttribute("data-lg-disp"), DISP);
+      var band = Math.max(3, Math.min(short * num(el.getAttribute("data-lg-band"), BAND) * roleScale[1], 26));
+      /* 位移绝对值上限：strength 按短边等比放大时，大瓦片轻松冲到 20~50px，
+         在报纸/照片这类高频壁纸上等于把几十像素外的 unrelated 内容拽进来，
+         再叠加 RGB 分通道差速 → 整块红蓝重影（渐变壁纸上看不出来）。
+         10px 足够保留边缘棱光，滑块开到最大也不会再撕裂。 */
+      var strength = Math.max(3, Math.min(10, short * num(el.getAttribute("data-lg-str"), STR) * roleScale[0]));
+      var disp = num(el.getAttribute("data-lg-disp"), DISP) * roleScale[2];
       var id;
 
       if (!SUPPORTED) {
@@ -214,15 +245,25 @@
       var geo = [W, H, Math.round(radius), Math.round(band * 4), Math.round(strength * 4), Math.round(disp * 10)].join(",");
       var ck = (lite ? "L," : "N,") + geo;
       var previousId = el.__lgId;
+      if (partial && previousId) delete used[previousId];
       var filterNode = previousId && el.__lgKey === ck ? document.getElementById(previousId) : null;
       if (filterNode) {
         id = previousId;
       } else {
         id = "lgf" + (++uid);
         owner[id] = el;
-        defs.appendChild(lite
+        var nextFilter = lite
           ? buildFilterLite(id, getMap(geo, W, H, radius, band, strength), strength)
-          : buildFilter(id, getMap(geo, W, H, radius, band, strength), strength, disp));
+          : buildFilter(id, getMap(geo, W, H, radius, band, strength), strength, disp);
+        /* feImage 的百分比按 SVG 视口解析，不是卡片边界。
+           必须与 dispMap 使用同一组局部像素尺寸，否则移动时中部也会
+           读到边缘位移或透明贴图，产生横带及未接触元素的错误采样。
+           材质预设只能改变强度，不能改变这里的坐标约定。 */
+        nextFilter.setAttribute("primitiveUnits", "userSpaceOnUse");
+        var mapImage = nextFilter.firstChild;
+        mapImage.setAttribute("x", "0"); mapImage.setAttribute("y", "0");
+        mapImage.setAttribute("width", String(W)); mapImage.setAttribute("height", String(H));
+        defs.appendChild(nextFilter);
         el.__lgId = id;
         el.__lgKey = ck;
       }
@@ -301,13 +342,15 @@
     /* 交互期间降级：对给定元素改用简化滤镜（保留折射、去掉色散），
        移动结束后再调一次 lite(list,false) 恢复完整效果。 */
     lite: function (list, on) {
+      var changed = [];
       for (var i = 0; i < list.length; i++) {
         var el = list[i];
-        if (!el) continue;
+        if (!el || !!el.__lgLite === !!on) continue;
         el.__lgLite = !!on;
-        el.__lgId = null;          /* 强制重新套用 */
+        changed.push(el);
       }
-      schedule();
+      /* 首个移动帧前完成切换；只测量受影响的玻璃，不扫描整页。 */
+      if (changed.length) render(changed);
     },
 
     /* ---------- 底层接口：给非矩形形状（metaball 等）复用 ---------- */

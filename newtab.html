@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>新标签页</title>
-<link rel="stylesheet" href="css/newtab.css">
+<link rel="stylesheet" href="css/newtab.css?v=search-glass-20260924">
 </head>
 <body>
 
@@ -72,6 +72,7 @@
     </div>
 
     <div class="searchwrap" id="searchWrap">
+      <button type="button" class="layout-handle search-handle" data-drag-handle aria-label="拖动搜索框" title="拖动搜索框">⠿</button>
       <form class="glass search" data-glass id="searchForm" autocomplete="off">
         <input id="q" type="text" placeholder="搜索，或直接输入网址" aria-label="搜索">
       </form>
@@ -88,11 +89,12 @@
       <div class="tgrid" id="tileGrid"></div>
       <div class="tiletools" id="tileTools" aria-label="快捷方式工具">
         <div class="tiletools-info">
-          <span class="tiletools-kicker">快捷方式</span>
+          <span class="tiletools-kicker">当前场景</span>
           <strong id="tilePageLabel">常用</strong>
           <span id="tileBatchCount" aria-live="polite"></span>
         </div>
         <div class="tiletools-actions">
+          <button type="button" class="tiletool-primary" id="layoutEditToggle" aria-pressed="false">编辑布局</button>
           <button type="button" class="tiletool-primary" id="tileBatchToggle">批量管理</button>
           <button type="button" id="tileOpenAll">打开本组</button>
           <button type="button" id="tileSelectAll" hidden>全选</button>
@@ -100,9 +102,16 @@
           <button type="button" class="tiletool-danger" id="tileDeleteSelected" hidden>删除所选</button>
         </div>
       </div>
+      <section class="layout-editor" id="layoutEditor" hidden aria-label="布局编辑器">
+        <div class="layout-editor-head"><strong>编辑当前场景</strong><button type="button" id="layoutUndo" disabled>撤销上一步</button><button type="button" id="layoutEditDone">完成</button></div>
+        <div class="layout-editor-row"><span>快捷方式大小</span><div class="seg compact-seg" id="tileSizeSeg" role="group" aria-label="快捷方式大小"><button type="button" data-size="small">紧凑</button><button type="button" data-size="medium">标准</button><button type="button" data-size="large">宽松</button></div></div>
+        <div class="layout-editor-row"><span>组件显示</span><div class="seg compact-seg" id="layoutWidgetSeg" role="group" aria-label="组件显示"></div></div>
+        <p>按住卡片或小组件的非操作区域即可自由摆放；拖到下方场景标签可移动到该组，场景标签也可拖动排序。松手后自动保存。</p>
+      </section>
+      <section class="home-pins" id="homePins" hidden aria-label="固定到首页的收藏"><span class="home-pins-title">固定收藏</span><div class="home-pin-list" id="homePinList"></div></section>
     </div>
 
-    <!-- 小组件行：按页可选，固定紧凑网格，避免与主内容互相遮挡 -->
+    <!-- 小组件行：按页可选，保留紧凑默认排列并支持自由定位 -->
     <div class="wgrow" id="wgRow">
       <section class="glass calwrap" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="calWrap" aria-label="日历">
       <button type="button" class="calx" id="calX" title="从本页移除日历" aria-label="从本页移除日历">×</button>
@@ -110,6 +119,7 @@
         <button type="button" class="calnav" id="calPrev" title="上个月" aria-label="上个月">‹</button>
         <div class="calm" id="calTitle">—</div>
         <button type="button" class="calnav" id="calNext" title="下个月" aria-label="下个月">›</button>
+        <button type="button" class="layout-handle widget-handle" data-drag-handle aria-label="拖动日历" title="拖动日历">⠿</button>
       </div>
       <div class="caltools">
         <button type="button" class="calview on" data-cal-view="month">月</button>
@@ -125,7 +135,7 @@
     <!-- 待办小组件（清单全局，显示按页） -->
     <aside class="glass todo" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="todoWrap" aria-label="待办清单">
       <button type="button" class="calx" id="todoX" title="从本页移除待办" aria-label="从本页移除待办">×</button>
-      <div class="wtitle">待办</div>
+      <div class="wtitle">待办 <button type="button" class="layout-handle widget-handle" data-drag-handle aria-label="拖动待办" title="拖动待办">⠿</button></div>
       <div class="todoadd">
         <div class="todo-main">
           <input id="todoInput" maxlength="60" placeholder="写下下一件要完成的事" aria-label="添加待办">
@@ -145,21 +155,21 @@
     <!-- 便签小组件（内容随页独立） -->
     <aside class="glass note" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="noteWrap" aria-label="便签">
       <button type="button" class="calx" id="noteX" title="从本页移除便签" aria-label="从本页移除便签">×</button>
-      <div class="wtitle">便签</div>
+      <div class="wtitle">便签 <button type="button" class="layout-handle widget-handle" data-drag-handle aria-label="拖动便签" title="拖动便签">⠿</button></div>
       <textarea id="noteText" placeholder="记点什么…自动保存（每页独立）" aria-label="便签内容"></textarea>
     </aside>
 
     <!-- 倒数日小组件（事件全局，显示按页） -->
     <aside class="glass cd" data-glass data-lg-str=".045" data-lg-band=".08" data-lg-disp=".28" id="cdWrap" aria-label="倒数日">
       <button type="button" class="calx" id="cdX" title="从本页移除倒数日" aria-label="从本页移除倒数日">×</button>
-      <div class="wtitle">倒数日</div>
+      <div class="wtitle">倒数日 <button type="button" class="layout-handle widget-handle" data-drag-handle aria-label="拖动倒数日" title="拖动倒数日">⠿</button></div>
       <div id="cdBody"></div>
     </aside>
     </div>
   </main>
 
   <footer class="foot">
-    <div class="pager" id="pager" role="tablist" aria-label="页面切换"></div>
+    <div class="pager" id="pager" role="tablist" aria-label="场景切换"></div>
     <div class="hints">
       <span><kbd>/</kbd> 聚焦搜索</span>
       <span><kbd>Esc</kbd> 关闭面板</span>
@@ -218,19 +228,31 @@
     <div class="sheetbody">
 
       <div class="sect">
-        <label>液态玻璃</label>
-        <div class="srow"><span class="lb">折射强度</span><input type="range" id="pStr" min="0.04" max="0.6" step="0.01"><span class="val" id="vStr"></span></div>
-        <div class="srow"><span class="lb">折射带宽</span><input type="range" id="pBand" min="0.06" max="0.45" step="0.01"><span class="val" id="vBand"></span></div>
-        <div class="srow"><span class="lb">色散</span><input type="range" id="pDisp" min="0" max="3" step="0.1"><span class="val" id="vDisp"></span></div>
+        <label>玻璃材质</label>
+        <div class="profile-choices" id="glassProfiles" role="group" aria-label="玻璃材质预设">
+          <button type="button" data-profile="clear"><strong>通透</strong><span>保留折射细节</span></button>
+          <button type="button" data-profile="balanced"><strong>均衡</strong><span>清晰与质感兼顾</span></button>
+          <button type="button" data-profile="readable"><strong>易读</strong><span>加强阅读区域底色</span></button>
+        </div>
+        <details class="glass-advanced" id="glassAdvanced">
+          <summary>高级设置：折射参数</summary>
+          <div class="glass-advanced-body">
+            <div class="srow"><span class="lb">折射强度</span><input type="range" id="pStr" min="0.04" max="0.6" step="0.01"><span class="val" id="vStr"></span></div>
+            <div class="srow"><span class="lb">折射带宽</span><input type="range" id="pBand" min="0.06" max="0.45" step="0.01"><span class="val" id="vBand"></span></div>
+            <div class="srow"><span class="lb">色散</span><input type="range" id="pDisp" min="0" max="3" step="0.1"><span class="val" id="vDisp"></span></div>
+          </div>
+        </details>
       </div>
 
       <div class="sect">
         <label>壁纸</label>
         <div class="walls" id="walls"></div>
+        <div class="walllib" id="wallLib"></div>
+        <div class="hint">上方第二排是你的壁纸库：输入直链或选择本地文件会自动入库（最多 12 张），点击缩略图切换，右上角 × 删除；轮换模式会带上库里的壁纸。</div>
         <div class="srow"><span class="lb">图片/视频</span><input type="text" id="wallUrl" placeholder="图片、GIF、视频或 Unsplash/GIPHY 直链" aria-label="壁纸媒体地址"></div>
         <div class="srow"><span class="lb">本地文件</span><button type="button" class="ghostbtn" id="btnWallFile">选择图片/GIF/视频</button><input type="file" id="wallFile" accept="image/*,video/*" style="display:none"></div>
         <div class="seg" id="wallMode">
-          <button type="button" data-m="preset">渐变</button>
+          <button type="button" data-m="preset">插画预设</button>
           <button type="button" data-m="url">图片/GIF</button>
           <button type="button" data-m="video">视频</button>
           <button type="button" data-m="random">随机轮换</button>
@@ -294,7 +316,7 @@
           <button type="button" data-d="on">开</button><button type="button" data-d="off">关</button>
         </div></div>
         <div class="srow"><span class="lb">页面布局</span><div class="seg">
-          <button type="button" id="btnResetLayout">复位搜索位置</button>
+          <button type="button" id="btnResetLayout" title="所有场景恢复标准大小与排列，保留内容和组件显示状态">一键默认初始排版</button>
         </div></div>
       </div>
 
@@ -365,6 +387,7 @@
   <div class="sbhead">
     <span class="sbtitle">收集板</span>
     <span class="sbmeta" id="sbMeta">0 项</span>
+    <button type="button" class="sborganize" id="sbDiscover" title="随机翻翻未处理的收藏">随便翻翻</button>
     <button type="button" class="sborganize" id="sbOrganize" title="一键整理" aria-label="一键整理">整理</button>
     <button type="button" class="sbbatchtoggle" id="sbBatchToggle" title="批量管理" aria-label="批量管理" aria-pressed="false">批量</button>
     <button type="button" class="sbadd" id="sbAdd" title="手动添加" aria-label="手动添加">+</button>
@@ -376,6 +399,11 @@
       <button type="button" data-filter="link">链接</button>
       <button type="button" data-filter="image">图片</button>
       <button type="button" data-filter="text">笔记</button>
+    </div>
+    <div class="sbfilters sbstatusfilters" id="sbStatusFilters" role="group" aria-label="阅读状态">
+      <button type="button" data-status="all" class="on">全部状态</button>
+      <button type="button" data-status="later">稍后看</button>
+      <button type="button" data-status="done">已归档</button>
     </div>
     <div class="sbbatchtools" id="sbBatchTools" hidden aria-label="收集板批量操作">
       <span class="sbbatchcount" id="sbBatchCount" aria-live="polite">已选 0 项</span>
@@ -409,11 +437,28 @@
   </div>
 </div>
 
+<div class="dialog" id="discoverDialog" aria-hidden="true">
+  <div class="dlgbox discover-box" id="discoverBox" data-glass data-lg-role="reading">
+    <div class="discover-kicker">从收藏里继续</div>
+    <h3 id="discoverTitle">随便翻翻</h3>
+    <div class="discover-meta" id="discoverMeta"></div>
+    <div class="discover-body" id="discoverBody"></div>
+    <div class="dlgfoot discover-actions">
+      <button type="button" class="btnp ghost" id="discoverSkip">跳过</button>
+      <button type="button" class="btnp ghost" id="discoverHide">暂时不再出现</button>
+      <button type="button" class="btnp ghost" id="discoverArchive">归档</button>
+      <button type="button" class="btnp" id="discoverOpen">打开原文</button>
+    </div>
+    <button type="button" class="feature-close discover-close" id="discoverClose" aria-label="关闭">×</button>
+  </div>
+</div>
+
 <div class="toast" id="toast" data-glass data-lg-str=".3" data-lg-band=".35" data-lg-disp=".6"></div>
 
-<script src="js/liquid-glass.js"></script>
+<script src="js/liquid-glass.js?v=local-bounds-20260924"></script>
 <script src="js/collection-board-core.js"></script>
 <script src="js/drag-position.js"></script>
-<script src="js/app.js"></script>
+<script src="js/drag-spring.js"></script>
+<script src="js/app.js?v=wallpapers-20260924"></script>
 </body>
 </html>

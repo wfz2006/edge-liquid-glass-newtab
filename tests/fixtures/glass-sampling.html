@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Glass sampling regression fixture</title>
+<style>
+  body { margin: 0; background: #555; }
+  #neighbor { position: absolute; width: 120px; height: 104px; background: black; }
+  #probe { position: absolute; left: 300px; top: 300px; width: 120px; height: 104px;
+    box-sizing: border-box; border-radius: 18px; overflow: hidden; z-index: 1;
+    border: 1px solid rgba(255,255,255,.4); background: rgba(255,255,255,.03); }
+</style>
+<svg width="0" height="0" aria-hidden="true"><defs id="glass-defs"></defs></svg>
+<div id="neighbor"></div>
+<div id="probe" data-glass></div>
+<script src="../../js/liquid-glass.js"></script>
+</html>

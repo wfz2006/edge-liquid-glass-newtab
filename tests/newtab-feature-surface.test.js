@@ -14,7 +14,7 @@ for (const id of [
   "btnBrowser", "browserPanel", "productivityPanel", "tileBatchToggle", "tileOpenAll",
   "tileDeleteSelected", "todoDue", "todoPriority", "todoRepeat",
   "todoRemind", "tilePageLabel", "shortcutBatchDialog", "worldClockDialog", "clockZoneInput",
-  "calWeek", "calAgenda", "wallFile", "weatherCities", "engineAdd", "syncSeg",
+  "calWeek", "calAgenda", "wallFile", "wallLib", "weatherCities", "engineAdd", "syncSeg",
   "calendarSync", "dlgTags", "sbBatchToggle", "sbBatchCount", "sbSelectAll",
   "sbClearSelection", "sbDeleteSelected"
 ]) assert.ok(ids.has(id), `missing feature DOM id: ${id}`);
@@ -26,7 +26,9 @@ for (const permission of ["bookmarks", "history", "sessions", "tabs", "tabGroups
   assert.ok(manifest.permissions.includes(permission), `missing manifest permission: ${permission}`);
 }
 assert.strictEqual(manifest.background.service_worker, "js/background.js");
+assert.ok(manifest.content_scripts[0].js.includes("js/drag-spring.js"));
 assert.match(app, /chrome\.storage\.sync/);
+assert.match(app, /LGDragSpring\.(release|step|atRest)/);
 const content = fs.readFileSync(require.resolve("../js/content.js"), "utf8");
 assert.match(app, /function sbDeleteSelected\(\)/);
 assert.match(app, /SB_CORE\.removeByIds/);
@@ -43,6 +45,9 @@ assert.match(app, /areaName === "local"/);
 assert.match(app, /sameSidebar/);
 assert.match(app, /sbPruneSelection/);
 assert.match(css, /\.sbcard\.selected/);
+assert.match(content, /LGDragSpring\.(release|step|atRest)/);
+assert.match(content, /function cardDragDocOn\(\)/);
+assert.match(content, /document\.addEventListener\("pointermove", cardDragMove, true\)/);
 assert.match(content, /class="batch-toggle"/);
 assert.match(content, /class="batch-tools"/);
 assert.match(content, /function deleteSelected\(\)/);
@@ -81,5 +86,19 @@ assert.doesNotMatch(css, /\.calwrap,.todo,.note,.cd\{[^}]*!important/);
 assert.match(css, /\.wgrow > \.draggable\{cursor:grab;touch-action:none;user-select:none\}/);
 assert.match(background, /contextMenus/);
 assert.match(background, /syncLocalState/);
+assert.match(background, /wall\.library/);
+assert.match(app, /function normalizeWallItem\(x\)/);
+assert.match(app, /WALL_LIB_MAX/);
+assert.match(app, /function renderWallLibrary\(\)/);
+assert.match(app, /function activeWallItem\(\)/);
+assert.match(app, /function addWallToLibrary\(item\)/);
+assert.match(app, /function applyWallItem\(item\)/);
+assert.match(app, /function deleteWallItem\(id\)/);
+assert.match(css, /\.walllib\.wlib|\.walllib \.wlib/);
+assert.match(app, /var faviconOk = Object\.create\(null\)/);
+assert.match(app, /var faviconDead = Object\.create\(null\)/);
+assert.match(app, /var faviconInflight = Object\.create\(null\)/);
+assert.match(app, /if \(faviconOk\[host\]\)/);
+assert.match(app, /if \(faviconDead\[host\]\)/);
 
 console.log("newtab-feature-surface: manifest, DOM surface, sync, shortcut, calendar, productivity checks passed");

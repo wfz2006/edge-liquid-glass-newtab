@@ -1,0 +1,21 @@
+# Local editor and operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+.superpowers/
+
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Temporary files and generated reports
+*.log
+*.tmp
+*.bak
+coverage/
+.nyc_output/

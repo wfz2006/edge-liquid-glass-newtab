@@ -94,6 +94,13 @@ function createHarness(localState) {
     getSyncMeta() {
       return clone(sync[SYNC_KEY]);
     },
+    getSyncRaw() {
+      const meta = sync[SYNC_KEY];
+      if (!meta || !meta.count) return "";
+      let raw = "";
+      for (let i = 0; i < meta.count; i += 1) raw += String(sync[`${SYNC_KEY}.${i}`] || "");
+      return raw;
+    },
     getSyncWriteCount() {
       return syncSets.length;
     }
@@ -121,6 +128,30 @@ test("context-menu links use the same trailing-slash canonicalization as the app
   assert.strictEqual(harness.getLocal().sidebar.length, 1);
 });
 
+test("context-menu capture preserves existing stack order and places the new card on top", () => {
+  const harness = createHarness({
+    sidebar: [{
+      id: "existing",
+      type: "link",
+      title: "Existing",
+      url: "https://example.com/docs",
+      tags: [],
+      x: 10,
+      y: 10,
+      z: 7
+    }]
+  });
+
+  harness.clickContextMenu(
+    { menuItemId: "lg-page", pageUrl: "https://example.org/new" },
+    { title: "New", url: "https://example.org/new" }
+  );
+
+  const items = harness.getLocal().sidebar;
+  assert.strictEqual(items[0].z, 7);
+  assert.strictEqual(items[1].z, 8);
+});
+
 test("sync writes flush the newest local state that arrived during an in-flight write", () => {
   const harness = createHarness({ sidebar: [] });
   const first = { syncEnabled: true, updatedAt: 1, sidebar: [] };
@@ -132,4 +163,48 @@ test("sync writes flush the newest local state that arrived during an in-flight 
 
   assert.strictEqual(harness.getSyncWriteCount(), 2);
   assert.strictEqual(harness.getSyncMeta().updatedAt, 2);
+});
+
+test("oversized sync snapshots do not publish an empty sidebar", () => {
+  const harness = createHarness({ sidebar: [] });
+  const sidebar = Array.from({ length: 200 }, (_, index) => ({
+    id: `text-${index}`,
+    type: "text",
+    title: `Large note ${index}`,
+    text: "x".repeat(2000),
+    tags: [],
+    x: 10,
+    y: index * 100,
+    z: index
+  }));
+
+  harness.changeLocal({ syncEnabled: true, updatedAt: 3, sidebar });
+
+  assert.strictEqual(harness.getSyncWriteCount(), 0);
+});
+
+test("wallpaper library dataURLs are stripped from sync snapshots but entries survive", () => {
+  const harness = createHarness({ sidebar: [] });
+  harness.changeLocal({
+    syncEnabled: true,
+    updatedAt: 5,
+    sidebar: [],
+    wall: {
+      fileData: "data:image/png;base64,BBB",
+      library: [
+        { id: "w1", kind: "image", url: "", data: "data:image/png;base64,AAA", name: "本地", addedAt: 1 },
+        { id: "w2", kind: "url", url: "https://example.com/a.jpg", data: "", name: "远端", addedAt: 2 }
+      ]
+    }
+  });
+  harness.flushSync();
+
+  const raw = harness.getSyncRaw();
+  assert.ok(raw, "expected a sync snapshot to be written");
+  const state = JSON.parse(raw);
+  assert.strictEqual(state.wall.fileData, "");
+  assert.strictEqual(state.wall.library.length, 2);
+  assert.ok(!("data" in state.wall.library[0]), "local image bytes must not enter sync storage");
+  assert.strictEqual(state.wall.library[0].id, "w1");
+  assert.strictEqual(state.wall.library[1].url, "https://example.com/a.jpg");
 });
