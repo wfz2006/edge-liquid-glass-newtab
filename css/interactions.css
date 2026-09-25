@@ -1,0 +1,91 @@
+/* 光学层保持静止；反馈只改变表面色彩、阴影及不带滤镜的图标。 */
+:root{
+  --ui-response:160ms;
+  --ui-release:280ms;
+  --ui-ease:cubic-bezier(.2,.75,.25,1);
+  --ui-spring:cubic-bezier(.2,.85,.3,1.3);
+}
+
+/* 不覆盖关闭按钮、弹层等已有的 opacity / visibility 过渡。 */
+:is(.sbtn,.ptab,.iconbtn,.btnp,.ghostbtn,.calnav,.calview,.caladd,
+    .seg button,.feature-tabs button,.todotools button,.tiletools button,
+    .layout-editor button,.browser-item,.eitem,.sitem,.sbfilters button,
+    .sborganize,.sbadd,.home-pin-chip,.profile-choices button,.calcell){
+  transition:background-color var(--ui-response) ease,
+    border-color var(--ui-response) ease,color var(--ui-response) ease,
+    box-shadow var(--ui-release) var(--ui-ease);
+}
+
+/* 场景标签本身也含折射，取消旧的整块上移动效。 */
+.ptab:hover{transform:none}
+
+@media (hover:hover) and (pointer:fine){
+  :is(.sbtn,.ptab,.iconbtn,.btnp,.ghostbtn,.calnav,.calview,.caladd,
+      .seg button,.feature-tabs button,.todotools button,.tiletools button,
+      .layout-editor button,.browser-item,.eitem,.sitem,.sbfilters button,
+      .sborganize,.sbadd,.home-pin-chip,.profile-choices button,.calcell):not(:disabled):not([aria-disabled="true"]):not(.page-drop-target):hover{
+    box-shadow:inset 0 1px 0 rgba(240,250,255,.5),0 3px 12px rgba(155,217,255,.16);
+  }
+  .tile:not(.dragging):not(:has(button:hover)):hover .ic{
+    transform:translateY(-2px) scale(1.06);
+  }
+  .iconbtn:not(:disabled):hover > svg{transform:translateY(-1px) scale(1.08)}
+  #btnSettings:not(:disabled):hover > svg{transform:rotate(22deg)}
+}
+
+/* 按下快、松开缓；玻璃容器不缩放，也不添加新的 backdrop root。 */
+body :is(button,.home-pin-chip):not(:disabled):not([aria-disabled="true"]):not([data-drag-handle]):not(.dragging):active{
+  box-shadow:inset 0 2px 6px rgba(2,12,28,.3),inset 0 0 0 1px rgba(224,244,255,.35);
+  transition-duration:65ms;
+}
+.tile .ic,.iconbtn > svg{
+  transition:transform var(--ui-release) var(--ui-spring),box-shadow var(--ui-response) ease;
+}
+body .tile:not(.dragging):not(:has(button:active)):active .ic,
+body .iconbtn:not(:disabled):active > svg,
+body #btnSettings:not(:disabled):active > svg{
+  transform:translateY(1px) scale(.94);
+  transition-duration:65ms;
+}
+.tile.dragging .ic{transform:none;transition:none}
+
+/* 选中状态保留稳定的内沿高光，键盘用户也能清楚定位。 */
+:is(.ptab,.calview,.seg button,.feature-tabs button,.todotools button).on{
+  box-shadow:inset 0 1px 0 rgba(240,250,255,.48),inset 0 -2px 0 rgba(177,224,255,.42);
+}
+:is(button,a.tile,.home-pin-chip,[role="button"]):focus-visible{
+  outline:2px solid rgba(192,232,255,.95);
+  outline-offset:3px;
+}
+.search:focus-within{
+  border-color:rgba(209,238,255,.72);
+  box-shadow:0 0 0 3px rgba(165,217,255,.12),0 12px 28px rgba(4,12,28,.2);
+}
+
+/* 固定占位，只向外舒展表面；下方卡片与自由布局坐标不受焦点影响。 */
+.searchwrap{height:58px;--search-spread:12px}
+.searchwrap > .search{
+  position:relative;left:0;top:0;width:100%;height:100%;
+  transition:width 360ms var(--ui-ease),height 360ms var(--ui-ease),
+    left 360ms var(--ui-ease),top 360ms var(--ui-ease),
+    border-color 240ms ease,box-shadow 360ms var(--ui-ease);
+}
+.searchwrap > .sbtn{
+  transition:left 360ms var(--ui-ease),right 360ms var(--ui-ease),
+    background-color var(--ui-response) ease,border-color var(--ui-response) ease,
+    box-shadow var(--ui-release) var(--ui-ease);
+}
+.searchwrap:has(#q:focus):not(.dragging) > .search{
+  left:calc(-1 * var(--search-spread));top:-2px;
+  width:calc(100% + var(--search-spread) * 2);height:calc(100% + 4px);
+}
+.searchwrap:has(#q:focus):not(.dragging) > .sbtn.engine{left:calc(9px - var(--search-spread))}
+.searchwrap:has(#q:focus):not(.dragging) > .sbtn.go{right:calc(9px - var(--search-spread))}
+@media (max-width:560px){
+  .searchwrap{height:52px;--search-spread:6px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .tile .ic,.iconbtn > svg{transform:none !important}
+  /* 主样式已关闭 transition / animation；仍保留静态按下和焦点反馈。 */
+}

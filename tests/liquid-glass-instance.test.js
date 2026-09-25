@@ -8,6 +8,7 @@ function svgNode(name) {
   const node = {
     nodeName: name,
     attrs: {},
+    style: {},
     children: [],
     parentNode: null,
     setAttribute(key, value) { this.attrs[key] = String(value); },
@@ -21,22 +22,28 @@ function svgNode(name) {
 }
 
 function glassElement() {
-  return {
+  const el = svgNode("div");
+  Object.defineProperties(el, {
+    offsetWidth: { get() { this.reads = (this.reads || 0) + 1; return this.width; } },
+    offsetHeight: { get() { return this.height; } }
+  });
+  return Object.assign(el, {
     isConnected: true,
     width: 120, height: 96, scale: 1,
     style: {},
     attrs: {},
-    get offsetWidth() { this.reads = (this.reads || 0) + 1; return this.width; },
-    get offsetHeight() { return this.height; },
+    matches(selector) { return selector === ".glass"; },
     getBoundingClientRect() { this.reads = (this.reads || 0) + 1; return { width: this.width * this.scale, height: this.height * this.scale }; },
     getAttribute(key) { return this.attrs[key] || null; }
-  };
+  });
 }
 
 const defs = svgNode("svg");
 defs.id = "glass-defs";
 const first = glassElement();
 const second = glassElement();
+const elements = [first, second];
+let generatedMaps = 0;
 
 function findById(node, id) {
   if (node.attrs && node.attrs.id === id) return node;
@@ -52,7 +59,7 @@ const document = {
   body: {},
   fonts: null,
   getElementById(id) { return id === "glass-defs" ? defs : findById(defs, id); },
-  querySelectorAll(selector) { return selector === "[data-glass]" ? [first, second] : []; },
+  querySelectorAll(selector) { return selector === "[data-glass]" ? elements : []; },
   createElement(name) {
     if (name !== "canvas") return svgNode(name);
     return {
@@ -61,7 +68,7 @@ const document = {
       getContext() {
         return {
           createImageData(w, h) { return { data: new Uint8ClampedArray(w * h * 4) }; },
-          putImageData() {}
+          putImageData() { generatedMaps++; }
         };
       },
       toDataURL() { return "data:image/png;base64,map"; }
@@ -160,4 +167,59 @@ assert.strictEqual(findById(defs, first.__lgId).firstChild.attrs.width, "144", "
 assert.strictEqual(findById(defs, first.__lgId).firstChild.attrs.height, "104");
 assert.strictEqual(findById(defs, second.__lgId).firstChild.attrs.width, "120", "resizing must leave sibling maps unchanged");
 
-console.log("liquid-glass-instance: ownership, local map bounds, lite and resize checks passed");
+const mapsBeforeDispersion = generatedMaps;
+second.attrs["data-lg-disp"] = "0.5";
+window.LiquidGlass.refresh();
+pendingFrame();
+assert.strictEqual(generatedMaps, mapsBeforeDispersion, "dispersion changes reuse the displacement image");
+
+window.LiquidGlass.refresh();
+const third = glassElement();
+elements.push(third);
+pendingFrame();
+assert.ok(third.__lgId, "a deferred refresh collects elements added before the frame");
+assert.notStrictEqual(third.__lgId, second.__lgId, "new elements still own independent filters");
+
+const fourth = glassElement(), fifth = glassElement();
+elements.push(fourth, fifth);
+window.LiquidGlass.refresh();
+window.LiquidGlass.lite([fourth], true);
+const fourthId = fourth.__lgId;
+window.LiquidGlass.lite([fifth], true);
+assert.strictEqual(fourth.__lgId, fourthId, "partial renders preserve newly registered glass before collection");
+assert.ok(findById(defs, fourthId), "a pending collection must not dispose another active filter");
+pendingFrame();
+fourth.isConnected = false;
+window.LiquidGlass.refresh();
+pendingFrame();
+assert.strictEqual(findById(defs, fourthId), null, "detached glass filters are still reclaimed");
+
+for (const el of [first, second]) {
+  assert.strictEqual(el.style.backdropFilter, "none", "interactive card must not own the backdrop filter");
+  assert.strictEqual(el.__lgClip.parentNode, el);
+  assert.strictEqual(el.__lgClip.style.overflow, "hidden", "a separate parent must clip the optical layer");
+  assert.strictEqual(el.__lgClip.style.pointerEvents, "none", "optics must not capture hover or drag");
+  assert.strictEqual(el.__lgClip.style.zIndex, "-1", "optics must paint behind direct button text");
+  assert.strictEqual(el.style.isolation, "isolate", "negative optics must stay in the card stacking context");
+  assert.strictEqual(el.__lgClip.attrs["aria-hidden"], "true");
+  assert.strictEqual(el.__lgClip.style.width, el.width + "px");
+  assert.strictEqual(el.__lgClip.style.height, el.height + "px");
+  assert.ok(el.__lgSurface.style.backdropFilter.includes("#" + el.__lgId));
+}
+const existingClip = first.__lgClip;
+window.LiquidGlass.refresh(); pendingFrame();
+assert.strictEqual(first.__lgClip, existingClip, "refresh must reuse the optical layer");
+first.removeChild(existingClip);
+window.LiquidGlass.refresh(); pendingFrame();
+assert.notStrictEqual(first.__lgClip, existingClip, "replacing card content must recreate its optical layer");
+assert.ok(first.__lgSurface.style.backdropFilter.includes("#" + first.__lgId));
+
+const neighborReadsBeforeResize = second.reads;
+first.width = 152;
+window.LiquidGlass.refresh([first]);
+assert.strictEqual(first.__lgClip.style.width, "152px", "targeted resize updates the clip synchronously");
+assert.strictEqual(findById(defs, first.__lgId).firstChild.attrs.width, "152", "targeted resize updates the map in the same frame");
+assert.strictEqual(second.reads, neighborReadsBeforeResize, "search motion must not remeasure neighboring glass");
+assert.ok(findById(defs, second.__lgId), "targeted resize preserves neighboring filters");
+
+console.log("liquid-glass-instance: ownership, bounds, lite, resize, map reuse and clipped optical layers passed");

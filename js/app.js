@@ -12,12 +12,20 @@
 
   /* ---------------- 常量表 ---------------- */
   var WALLS = [
-    { id: "aurora", name: "樱色流星", css: 'url("assets/wallpapers/sunset-dreamer.webp")', preview: 'url("assets/wallpapers/previews/sunset-dreamer.webp")' },
-    { id: "dusk",   name: "富士武士", css: 'url("assets/wallpapers/samurai-at-fuji.webp")', preview: 'url("assets/wallpapers/previews/samurai-at-fuji.webp")' },
-    { id: "mint",   name: "雨城漫步", css: 'url("assets/wallpapers/rain-city.jpg")', preview: 'url("assets/wallpapers/previews/rain-city.webp")' },
-    { id: "peach",  name: "冬日魔法", css: 'url("assets/wallpapers/winter-magic.jpg")', preview: 'url("assets/wallpapers/previews/winter-magic.webp")' },
-    { id: "steel",  name: "秋树约会", css: 'url("assets/wallpapers/autumn-rendezvous.jpg")', preview: 'url("assets/wallpapers/previews/autumn-rendezvous.webp")' },
-    { id: "ink",    name: "魔女工坊", css: 'url("assets/wallpapers/witch-workshop.jpg")', preview: 'url("assets/wallpapers/previews/witch-workshop.webp")' }
+    { id: "celestial-mage", name: "星穹法师", css: 'url("assets/wallpapers/celestial-mage.webp")', preview: 'url("assets/wallpapers/previews/celestial-mage.webp")' },
+    { id: "moonlake-mage", name: "月湖法师", css: 'url("assets/wallpapers/moonlake-mage.webp")', preview: 'url("assets/wallpapers/previews/moonlake-mage.webp")' },
+    { id: "starlight-alchemist", name: "星光炼金师", css: 'url("assets/wallpapers/starlight-alchemist.webp")', preview: 'url("assets/wallpapers/previews/starlight-alchemist.webp")' },
+    { id: "moon-dragon-shrine", name: "月龙神社", css: 'url("assets/wallpapers/moon-dragon-shrine.webp")', preview: 'url("assets/wallpapers/previews/moon-dragon-shrine.webp")' },
+    { id: "moon-gate-symmetry", name: "月之门", css: 'url("assets/wallpapers/moon-gate-symmetry.webp")', preview: 'url("assets/wallpapers/previews/moon-gate-symmetry.webp")' },
+    { id: "sky-serpent-flight", name: "天蛇翱翔", css: 'url("assets/wallpapers/sky-serpent-flight.webp")', preview: 'url("assets/wallpapers/previews/sky-serpent-flight.webp")' },
+    { id: "elven-ranger-portrait", name: "精灵游侠", css: 'url("assets/wallpapers/elven-ranger-portrait.webp")', preview: 'url("assets/wallpapers/previews/elven-ranger-portrait.webp")' },
+    { id: "floating-city-adventurer", name: "浮空城旅人", css: 'url("assets/wallpapers/floating-city-adventurer.webp")', preview: 'url("assets/wallpapers/previews/floating-city-adventurer.webp")' },
+    { id: "forest-night-market", name: "森林夜市", css: 'url("assets/wallpapers/forest-night-market.webp")', preview: 'url("assets/wallpapers/previews/forest-night-market.webp")' },
+    { id: "autumn-ancient-tree", name: "秋日古树", css: 'url("assets/wallpapers/autumn-ancient-tree.webp")', preview: 'url("assets/wallpapers/previews/autumn-ancient-tree.webp")' },
+    { id: "snow-sigil-overhead", name: "雪原符印", css: 'url("assets/wallpapers/snow-sigil-overhead.webp")', preview: 'url("assets/wallpapers/previews/snow-sigil-overhead.webp")' },
+    { id: "sunset-sky-whale", name: "落日天空鲸", css: 'url("assets/wallpapers/sunset-sky-whale.webp")', preview: 'url("assets/wallpapers/previews/sunset-sky-whale.webp")' },
+    { id: "underwater-ruin-library", name: "海底遗迹图书馆", css: 'url("assets/wallpapers/underwater-ruin-library.webp")', preview: 'url("assets/wallpapers/previews/underwater-ruin-library.webp")' },
+    { id: "volcanic-dragon-forge", name: "火山龙锻炉", css: 'url("assets/wallpapers/volcanic-dragon-forge.webp")', preview: 'url("assets/wallpapers/previews/volcanic-dragon-forge.webp")' }
   ];
   var ENGINES = [
     { id: "bing",   name: "Bing",       url: "https://www.bing.com/search?q=" },
@@ -191,7 +199,7 @@
       weatherCities: CITIES.map(function (c) { return { id: cityId(c), n: c.n, lat: c.lat, lon: c.lon, source: "preset" }; }),
       weatherActiveId: cityId(CITIES[0]),
       openInNew: false,
-      wall: { mode: "preset", id: "aurora", url: "", fileData: "", fileType: "", rotation: "off", customCss: "", fontUrl: "", fontFamily: "", library: [], activeId: "" },
+      wall: { mode: "preset", id: WALLS[0].id, url: "", fileData: "", fileType: "", rotation: "off", customCss: "", fontUrl: "", fontFamily: "", library: [], activeId: "" },
       syncEnabled: true,
       updatedAt: 0,
       productivity: {
@@ -469,7 +477,7 @@
     if (o.wall && typeof o.wall === "object") {
       d.wall = {
         mode: ["url", "video", "bing", "local", "random", "preset"].indexOf(o.wall.mode) >= 0 ? o.wall.mode : "preset",
-        id: typeof o.wall.id === "string" ? o.wall.id : "aurora",
+        id: typeof o.wall.id === "string" && WALLS.some(function (w) { return w.id === o.wall.id; }) ? o.wall.id : WALLS[0].id,
         url: typeof o.wall.url === "string" ? o.wall.url.slice(0, 2000) : "",
         fileData: typeof o.wall.fileData === "string" && /^(data:image\/|data:video\/)/i.test(o.wall.fileData) ? o.wall.fileData : "",
         fileType: typeof o.wall.fileType === "string" ? o.wall.fileType.slice(0, 80) : "",
@@ -3162,7 +3170,7 @@
     S.wall.library = (S.wall.library || []).filter(function (w) { return w.id !== id; });
     if (S.wall.activeId === id) {
       S.wall.activeId = "";
-      S.wall.mode = "preset"; S.wall.id = "aurora";
+      S.wall.mode = "preset"; S.wall.id = WALLS[0].id;
       S.wall.url = ""; S.wall.fileData = ""; S.wall.fileType = "";
     }
     store.save({ wall: S.wall });

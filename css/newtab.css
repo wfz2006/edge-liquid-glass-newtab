@@ -605,7 +605,7 @@ body.drops-off .drops{display:none}
 .hint code{padding:1px 4px;border-radius:4px;background:rgba(255,255,255,.1);font-size:11px}
 .srow input[type=text]::placeholder{color:rgba(255,255,255,.5)}
 .srow input[type=text]:focus{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.42)}
-.walls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.walls{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 .walls .sw{
   display:block;width:100%;height:46px;padding:0;border-radius:12px;cursor:pointer;border:2px solid transparent;
   background-size:cover;background-position:center;
@@ -1219,6 +1219,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .tile.selected{outline:0;border-color:var(--blue-glow);box-shadow:0 0 0 2px rgba(151,204,255,.18),0 14px 30px rgba(4,12,28,.26);background:var(--surface-active)}
 .tile .tilecheck{left:8px;top:8px;width:19px;height:19px;color:#0d1b2c;background:#d9efff;border-color:#eff9ff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .tiletools{width:min(780px,100%);margin:15px auto 0;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line-quiet);border-radius:15px;background:var(--surface-quiet);box-shadow:0 8px 24px rgba(3,9,24,.1)}
+.foot{width:min(980px,100%);margin-inline:auto}
+.foot .tiletools{align-self:flex-end;margin:0}
 .tiletools-info{display:flex;align-items:baseline;gap:9px;min-width:0}
 .tiletools-kicker{font-size:10px;letter-spacing:.12em;color:var(--ink-faint)}
 .tiletools-info strong{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--ink-soft)}

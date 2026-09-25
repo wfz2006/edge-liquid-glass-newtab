@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>新标签页</title>
 <link rel="stylesheet" href="css/newtab.css?v=search-glass-20260924">
+<link rel="stylesheet" href="css/interactions.css?v=search-breath-20260926">
 </head>
 <body>
 
@@ -87,21 +88,6 @@
 
     <div class="tiles" id="tiles">
       <div class="tgrid" id="tileGrid"></div>
-      <div class="tiletools" id="tileTools" aria-label="快捷方式工具">
-        <div class="tiletools-info">
-          <span class="tiletools-kicker">当前场景</span>
-          <strong id="tilePageLabel">常用</strong>
-          <span id="tileBatchCount" aria-live="polite"></span>
-        </div>
-        <div class="tiletools-actions">
-          <button type="button" class="tiletool-primary" id="layoutEditToggle" aria-pressed="false">编辑布局</button>
-          <button type="button" class="tiletool-primary" id="tileBatchToggle">批量管理</button>
-          <button type="button" id="tileOpenAll">打开本组</button>
-          <button type="button" id="tileSelectAll" hidden>全选</button>
-          <button type="button" id="tileSetTags" hidden>设标签</button>
-          <button type="button" class="tiletool-danger" id="tileDeleteSelected" hidden>删除所选</button>
-        </div>
-      </div>
       <section class="layout-editor" id="layoutEditor" hidden aria-label="布局编辑器">
         <div class="layout-editor-head"><strong>编辑当前场景</strong><button type="button" id="layoutUndo" disabled>撤销上一步</button><button type="button" id="layoutEditDone">完成</button></div>
         <div class="layout-editor-row"><span>快捷方式大小</span><div class="seg compact-seg" id="tileSizeSeg" role="group" aria-label="快捷方式大小"><button type="button" data-size="small">紧凑</button><button type="button" data-size="medium">标准</button><button type="button" data-size="large">宽松</button></div></div>
@@ -169,6 +155,21 @@
   </main>
 
   <footer class="foot">
+    <div class="tiletools" id="tileTools" aria-label="快捷方式工具">
+      <div class="tiletools-info">
+        <span class="tiletools-kicker">当前场景</span>
+        <strong id="tilePageLabel">常用</strong>
+        <span id="tileBatchCount" aria-live="polite"></span>
+      </div>
+      <div class="tiletools-actions">
+        <button type="button" class="tiletool-primary" id="layoutEditToggle" aria-pressed="false">编辑布局</button>
+        <button type="button" class="tiletool-primary" id="tileBatchToggle">批量管理</button>
+        <button type="button" id="tileOpenAll">打开本组</button>
+        <button type="button" id="tileSelectAll" hidden>全选</button>
+        <button type="button" id="tileSetTags" hidden>设标签</button>
+        <button type="button" class="tiletool-danger" id="tileDeleteSelected" hidden>删除所选</button>
+      </div>
+    </div>
     <div class="pager" id="pager" role="tablist" aria-label="场景切换"></div>
     <div class="hints">
       <span><kbd>/</kbd> 聚焦搜索</span>
@@ -248,7 +249,7 @@
         <label>壁纸</label>
         <div class="walls" id="walls"></div>
         <div class="walllib" id="wallLib"></div>
-        <div class="hint">上方第二排是你的壁纸库：输入直链或选择本地文件会自动入库（最多 12 张），点击缩略图切换，右上角 × 删除；轮换模式会带上库里的壁纸。</div>
+        <div class="hint">预设壁纸下方是你的壁纸库：输入直链或选择本地文件会自动入库（最多 12 张），点击缩略图切换，右上角 × 删除；轮换模式会带上库里的壁纸。</div>
         <div class="srow"><span class="lb">图片/视频</span><input type="text" id="wallUrl" placeholder="图片、GIF、视频或 Unsplash/GIPHY 直链" aria-label="壁纸媒体地址"></div>
         <div class="srow"><span class="lb">本地文件</span><button type="button" class="ghostbtn" id="btnWallFile">选择图片/GIF/视频</button><input type="file" id="wallFile" accept="image/*,video/*" style="display:none"></div>
         <div class="seg" id="wallMode">
@@ -455,10 +456,11 @@
 
 <div class="toast" id="toast" data-glass data-lg-str=".3" data-lg-band=".35" data-lg-disp=".6"></div>
 
-<script src="js/liquid-glass.js?v=local-bounds-20260924"></script>
+<script src="js/liquid-glass.js?v=search-breath-20260926"></script>
+<script src="js/search-motion.js?v=20260926"></script>
 <script src="js/collection-board-core.js"></script>
 <script src="js/drag-position.js"></script>
 <script src="js/drag-spring.js"></script>
-<script src="js/app.js?v=wallpapers-20260924"></script>
+<script src="js/app.js?v=clipped-layer-20260925"></script>
 </body>
 </html>

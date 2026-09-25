@@ -27,7 +27,7 @@
     readable: { display: [1.08, 1, 0.9], operation: [0.74, 0.9, 0.64], reading: [0.16, 0.66, 0.12] }
   };
 
-  var defs = null, uid = 0, owner = {}, els = [], rafId = 0, sizeKey = "";
+  var defs = null, uid = 0, owner = {}, els = [], rafId = 0, sizeKey = "", needsCollect = false;
 
   /* ---------------- 数学 ---------------- */
   function num(v, d) { var n = parseFloat(v); return isNaN(n) ? d : n; }
@@ -61,10 +61,14 @@
         var px = (x + 0.5) / mw * W - hw;
         var d = rrSDF(px, py, hw, hh, R);
         var m = 1 - ss(inner, band, -d);
-        var gx = rrSDF(px + e, py, hw, hh, R) - rrSDF(px - e, py, hw, hh, R);
-        var gy = rrSDF(px, py + e, hw, hh, R) - rrSDF(px, py - e, hw, hh, R);
-        var L = Math.hypot(gx, gy) || 1;
-        gx /= L; gy /= L;
+        /* 内部边缘权重为零，无需四次 SDF 采样和法线归一化。 */
+        var gx = 0, gy = 0;
+        if (m > 0) {
+          gx = rrSDF(px + e, py, hw, hh, R) - rrSDF(px - e, py, hw, hh, R);
+          gy = rrSDF(px, py + e, hw, hh, R) - rrSDF(px, py - e, hw, hh, R);
+          var L = Math.hypot(gx, gy) || 1;
+          gx /= L; gy /= L;
+        }
         /* 中部也向光学中心采样，形成可见的透镜放大；此前 m=0 使整片内部
            完全不偏折。与边缘法线平滑混合，保持中心不平移、取样不越过边界。 */
         var dx = (px / hw) * bodyStrength * (1 - m) + gx * m * strength;
@@ -160,16 +164,55 @@
   }
 
   /* 位移贴图按几何参数缓存：精简版与完整版共用同一张图，避免重复计算 */
-  var mapCache = {};
+  var mapCache = new Map();
   function getMap(geo, W, H, radius, band, strength) {
-    if (!mapCache[geo]) {
-      if (Object.keys(mapCache).length > 60) mapCache = {};
-      mapCache[geo] = dispMap(W, H, radius, band, strength);
+    var href = mapCache.get(geo);
+    if (href !== undefined) {
+      mapCache.delete(geo);
+    } else {
+      href = dispMap(W, H, radius, band, strength);
+      /* 只淘汰最久未用的一张，避免容量临界点清空所有常用贴图。 */
+      if (mapCache.size >= 60) mapCache.delete(mapCache.keys().next().value);
     }
-    return mapCache[geo];
+    mapCache.set(geo, href);
+    return href;
   }
 
   /* ---------------- 渲染 ---------------- */
+  function filterSurface(el, cs, W, H) {
+    if (!el.matches || !el.matches(".glass")) return el;
+    var clip = el.__lgClip, surface = el.__lgSurface;
+    if (!clip || clip.parentNode !== el) {
+      clip = document.createElement("span");
+      surface = document.createElement("span");
+      clip.className = "lg-optics-clip";
+      clip.setAttribute("aria-hidden", "true");
+      Object.assign(clip.style, {
+        position: "absolute", display: "block", overflow: "hidden",
+        pointerEvents: "none", zIndex: "-1", margin: "0", padding: "0", border: "0"
+      });
+      Object.assign(surface.style, {
+        position: "absolute", inset: "0", borderRadius: "inherit", pointerEvents: "none"
+      });
+      clip.appendChild(surface);
+      el.appendChild(clip);
+      el.__lgClip = clip;
+      el.__lgSurface = surface;
+    }
+    /* 布局尺寸包含边框；内部绝对定位以 padding box 为原点，需要补回边框。
+       父卡片和独立 clip 都执行圆角裁剪，滤镜层不参与鼠标命中或内容布局。 */
+    clip.style.left = -num(cs.borderLeftWidth, 0) + "px";
+    clip.style.top = -num(cs.borderTopWidth, 0) + "px";
+    clip.style.width = W + "px";
+    clip.style.height = H + "px";
+    clip.style.borderRadius = cs.borderRadius || cs.borderTopLeftRadius;
+    /* 负层级留在卡片的堆叠上下文内，避免折射层覆盖按钮的直接文本节点。 */
+    el.style.isolation = "isolate";
+    el.style.backdropFilter = "none";
+    el.style.webkitBackdropFilter = "none";
+    return surface;
+  }
+
   function clearDefs() {
     if (!defs) return;
     while (defs.firstChild) defs.removeChild(defs.firstChild);
@@ -201,9 +244,11 @@
       els.forEach(function (el) { el.__lgId = null; el.__lgKey = null; });
     }
 
+    if (!partial && needsCollect) collect();
     var used = {};
-    if (partial) els.forEach(function (el) {
-      if (el.isConnected && el.__lgId) used[el.__lgId] = 1;
+    /* 新元素可能在延迟 collect 前已切换 lite；以登记表保留它的滤镜。 */
+    if (partial) Object.keys(owner).forEach(function (fid) {
+      if (owner[fid].isConnected) used[fid] = 1;
     });
     var targets = partial ? only : els;
     for (var n = 0; n < targets.length; n++) {
@@ -252,9 +297,11 @@
       } else {
         id = "lgf" + (++uid);
         owner[id] = el;
+        /* 色散仅影响滤镜链，不影响贴图；按实际生成参数复用像素数据。 */
+        var mapGeo = [W, H, radius, band, strength].join(",");
         var nextFilter = lite
-          ? buildFilterLite(id, getMap(geo, W, H, radius, band, strength), strength)
-          : buildFilter(id, getMap(geo, W, H, radius, band, strength), strength, disp);
+          ? buildFilterLite(id, getMap(mapGeo, W, H, radius, band, strength), strength)
+          : buildFilter(id, getMap(mapGeo, W, H, radius, band, strength), strength, disp);
         /* feImage 的百分比按 SVG 视口解析，不是卡片边界。
            必须与 dispMap 使用同一组局部像素尺寸，否则移动时中部也会
            读到边缘位移或透明贴图，产生横带及未接触元素的错误采样。
@@ -269,13 +316,14 @@
       }
       used[id] = 1;
 
-      if (previousId !== id || el.style.backdropFilter.indexOf("#" + id) < 0) {
+      var surface = filterSurface(el, cs, W, H);
+      if (previousId !== id || (surface.style.backdropFilter || "").indexOf("#" + id) < 0) {
         /* 不挂 blur —— Chromium 对「近透明背景 + border + backdrop blur」的组合
            会把模糊结果溢出绘制到元素顶缘外约 3σ 的壁纸区，形成一条亮带（实测 blur≥1px 即出现）。
            磨砂感由折射 + 页面纹理承担，不再依赖 backdrop blur。 */
         var v = "url(#" + id + ") saturate(140%) brightness(1.02)";
-        el.style.backdropFilter = v;
-        el.style.webkitBackdropFilter = v;
+        surface.style.backdropFilter = v;
+        surface.style.webkitBackdropFilter = v;
       }
     }
 
@@ -299,7 +347,7 @@
     rafId = global.requestAnimationFrame ? requestAnimationFrame(render) : setTimeout(render, 16);
   }
 
-  function collect() { els = [].slice.call(document.querySelectorAll("[data-glass]")); }
+  function collect() { els = [].slice.call(document.querySelectorAll("[data-glass]")); needsCollect = false; }
 
   var rt = 0;
   function onResize() { clearTimeout(rt); rt = setTimeout(function () { schedule(); }, 120); }
@@ -320,8 +368,11 @@
   global.LiquidGlass = {
     supported: SUPPORTED,
     init: init,
-    /* 新增/显示元素后调用 */
-    refresh: function () { collect(); schedule(); },
+    /* 指定元素时同步更新尺寸；无参数则在下一帧重新收集新增/显示的元素。 */
+    refresh: function (list) {
+      if (Array.isArray(list)) { render(list); return; }
+      needsCollect = true; schedule();
+    },
     /* 实时调参：清缓存并强制重建 */
     set: function (o) {
       if (o.band != null) ROOT.style.setProperty("--lg-band", o.band);

@@ -7,6 +7,8 @@
 ## 功能概览
 
 - 液态玻璃风格的新标签页：可选材质预设、时钟、天气、搜索建议与搜索历史。
+- 玻璃表面采用局部像素采样和独立裁剪层，卡片边缘保持圆角，拖动时保留折射效果并减少合成残影。
+- 搜索框聚焦时会轻微舒展，失焦后平滑恢复；按钮、快捷方式图标和场景标签提供悬停、按下、选中与键盘焦点反馈，并遵守系统的“减少动态效果”设置。
 - Bing、Google、DuckDuckGo 和自定义搜索引擎，可切换当前页或新标签打开结果。
 - 多场景快捷方式：编辑图标和标签、拖动排序，并支持批量管理。
 - 布局编辑模式：自由摆放搜索框、快捷方式和小组件，调整场景顺序，并可撤销上一步布局操作。
@@ -18,7 +20,7 @@
 - 收集板支持搜索、标签、拖动整理、批量操作、重复保护、快捷键粘贴和右键菜单收藏。
 - 新标签页与网页侧边栏共用收集数据，可导入/导出备份，并可选择使用浏览器同步。
 
-内置壁纸的作者与来源列在 [`assets/wallpapers/CREDITS.md`](assets/wallpapers/CREDITS.md)；这些图片按各自的 CC BY 4.0 条款授权，与扩展源代码的许可证分开。
+内置的 14 张生成壁纸由项目维护者提供，文件清单见 [`assets/wallpapers/CREDITS.md`](assets/wallpapers/CREDITS.md)；壁纸与扩展源代码分开授权。
 
 ## 安装
 
@@ -51,7 +53,7 @@ cd edge-liquid-glass-newtab
 项目不需要打包器，修改源码后可以直接在 `edge://extensions` 中重新加载扩展。测试使用 Node.js 内置测试运行器：
 
 ```powershell
-# 运行回归测试
+# 运行全部回归测试（包括液态玻璃、拖动、同步和性能检查）
 node --test tests/*.test.js
 
 # 检查 JavaScript 语法
@@ -70,6 +72,7 @@ js/app.js         新标签页功能与数据状态
 js/content.js     普通网页收集板
 js/background.js  Service Worker、右键菜单与浏览器 API
 js/*-core.js      可复用的收集板与布局逻辑
+js/search-motion.js 搜索框聚焦舒展与局部折射尺寸同步
 tests/             Node.js 回归测试
 ```
 
@@ -92,4 +95,4 @@ tests/             Node.js 回归测试
 
 ## 许可证
 
-本项目源代码采用 [MIT License](LICENSE)。仓库中的预设壁纸是第三方艺术作品，不包含在源代码的 MIT 授权范围内；使用或再分发时请遵循 [`assets/wallpapers/CREDITS.md`](assets/wallpapers/CREDITS.md) 中列出的作者署名和 CC BY 4.0 条款。
+本项目源代码采用 [MIT License](LICENSE)。内置壁纸不包含在源代码的 MIT 授权范围内；使用或再分发壁纸前，请向项目维护者确认授权。

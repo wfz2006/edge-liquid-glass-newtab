@@ -5,15 +5,20 @@ async (page) => {
   const base = page.url().split("/").slice(0, 3).join("/");
   const fixture = base + "/tests/fixtures/glass-sampling.html";
   const checks = [];
-  for (const profile of ["clear", "balanced", "readable"]) {
+  for (const profile of ["clear", "balanced", "readable", "custom"]) {
     for (const lite of [false, true]) {
     await page.goto(fixture);
     await page.evaluate(profile => {
       document.documentElement.setAttribute("data-glass-profile", profile);
-      LiquidGlass.init();
+      if (profile === "custom") {
+        document.documentElement.style.setProperty("--lg-band", ".23");
+        document.documentElement.style.setProperty("--lg-str", ".6");
+        document.documentElement.style.setProperty("--lg-disp", "1.8");
+      }
       Object.assign(document.getElementById("probe").style, {
         border: "none", background: "transparent"
       });
+      LiquidGlass.init();
       Object.assign(document.getElementById("neighbor").style, {
         left: "356px", top: "348px", width: "8px", height: "8px", background: "white"
       });
@@ -25,7 +30,7 @@ async (page) => {
     const center = { x: 324, y: 324, width: 72, height: 56 };
     const filtered = await page.screenshot({ clip: center });
     await page.evaluate(() => {
-      document.getElementById("probe").style.backdropFilter = "saturate(140%) brightness(1.02)";
+      document.getElementById("probe").__lgSurface.style.backdropFilter = "saturate(140%) brightness(1.02)";
     });
     const reference = await page.screenshot({ clip: center });
     const centers = await page.evaluate(async images => {
@@ -50,7 +55,7 @@ async (page) => {
     }
     await page.evaluate(() => {
       const el = document.getElementById("probe");
-      el.style.backdropFilter = "url(#" + el.__lgId + ") saturate(140%) brightness(1.02)";
+      el.__lgSurface.style.backdropFilter = "url(#" + el.__lgId + ") saturate(140%) brightness(1.02)";
       Object.assign(document.getElementById("neighbor").style, { width: "120px", height: "104px" });
     });
 
