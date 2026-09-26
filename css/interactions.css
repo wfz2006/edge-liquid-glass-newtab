@@ -10,7 +10,7 @@
 :is(.sbtn,.ptab,.iconbtn,.btnp,.ghostbtn,.calnav,.calview,.caladd,
     .seg button,.feature-tabs button,.todotools button,.tiletools button,
     .layout-editor button,.browser-item,.eitem,.sitem,.sbfilters button,
-    .sborganize,.sbadd,.home-pin-chip,.profile-choices button,.calcell){
+    .sbfiltertoggle,.sbmoretoggle,.sbbatchtoggle,.sbadd,.home-pin-chip,.profile-choices button,.calcell){
   transition:background-color var(--ui-response) ease,
     border-color var(--ui-response) ease,color var(--ui-response) ease,
     box-shadow var(--ui-release) var(--ui-ease);
@@ -23,7 +23,7 @@
   :is(.sbtn,.ptab,.iconbtn,.btnp,.ghostbtn,.calnav,.calview,.caladd,
       .seg button,.feature-tabs button,.todotools button,.tiletools button,
       .layout-editor button,.browser-item,.eitem,.sitem,.sbfilters button,
-      .sborganize,.sbadd,.home-pin-chip,.profile-choices button,.calcell):not(:disabled):not([aria-disabled="true"]):not(.page-drop-target):hover{
+      .sbfiltertoggle,.sbmoretoggle,.sbbatchtoggle,.sbadd,.home-pin-chip,.profile-choices button,.calcell):not(:disabled):not([aria-disabled="true"]):not(.page-drop-target):hover{
     box-shadow:inset 0 1px 0 rgba(240,250,255,.5),0 3px 12px rgba(155,217,255,.16);
   }
   .tile:not(.dragging):not(:has(button:hover)):hover .ic{

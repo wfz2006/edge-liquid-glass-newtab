@@ -2469,7 +2469,9 @@
     var selectAll = $("sbSelectAll"), clear = $("sbClearSelection"), del = $("sbDeleteSelected");
     var chosen = sbSelectedItems().length, visible = sbVisibleItems().length;
     if (toggle) {
-      toggle.textContent = sbBatchMode ? "退出批量" : "批量";
+      toggle.textContent = sbBatchMode ? "退出" : "多选";
+      toggle.title = sbBatchMode ? "退出批量管理" : "批量管理";
+      toggle.setAttribute("aria-label", sbBatchMode ? "退出批量管理" : "进入批量管理");
       toggle.setAttribute("aria-pressed", sbBatchMode ? "true" : "false");
     }
     if (row) row.hidden = !sbBatchMode;
@@ -2487,6 +2489,27 @@
     var visible = sbVisibleItems().length;
     $("sbMeta").textContent = visible === S.sidebar.length ? visible + " 项" : visible + "/" + S.sidebar.length + " 项";
     renderSbBatchTools();
+  }
+  function setSbPopup(kind) {
+    var more = $("sbMoreMenu"), filter = $("sbFilterPanel");
+    more.hidden = kind !== "more";
+    filter.hidden = kind !== "filter";
+    $("sbMoreToggle").setAttribute("aria-expanded", String(kind === "more"));
+    $("sbFilterToggle").setAttribute("aria-expanded", String(kind === "filter"));
+  }
+  function syncSbFilterUi() {
+    var active = Number(sbFilter !== "all") + Number(sbStatusFilter !== "all");
+    var badge = $("sbFilterCount"), toggle = $("sbFilterToggle");
+    badge.textContent = String(active);
+    badge.hidden = !active;
+    toggle.classList.toggle("active", !!active);
+    toggle.setAttribute("aria-label", active ? "筛选收集板，已启用 " + active + " 项筛选" : "筛选收集板");
+    $("sbClearFilters").disabled = !active;
+    ["sbFilters", "sbStatusFilters"].forEach(function (id) {
+      [].slice.call($(id).querySelectorAll("button")).forEach(function (button) {
+        button.setAttribute("aria-pressed", String(button.classList.contains("on")));
+      });
+    });
   }
   function clampSb() {
     var box = $("sbCanvas");
@@ -2510,6 +2533,7 @@
   function closeSb() {
     if (!sbOpenState) return;
     sbOpenState = false;
+    setSbPopup(null);
     $("sbar").classList.remove("open");
   }
   function scheduleSbClose() {
@@ -2781,8 +2805,33 @@
     $("sbar").addEventListener("mouseenter", function () { clearTimeout(sbCloseTimer); });
     $("sbar").addEventListener("mouseleave", scheduleSbClose);
     $("sbAdd").addEventListener("click", function () { openSbDlg(-1); });
-    $("sbOrganize").addEventListener("click", organizeSidebar);
-    $("sbDiscover").addEventListener("click", function () { discoverySeen = Object.create(null); discoverNext(); });
+    $("sbMoreToggle").addEventListener("click", function () { setSbPopup($("sbMoreMenu").hidden ? "more" : null); });
+    $("sbFilterToggle").addEventListener("click", function () { setSbPopup($("sbFilterPanel").hidden ? "filter" : null); });
+    $("sbOrganize").addEventListener("click", function () { setSbPopup(null); organizeSidebar(); });
+    $("sbDiscover").addEventListener("click", function () { setSbPopup(null); discoverySeen = Object.create(null); discoverNext(); });
+    $("sbClearFilters").addEventListener("click", function () {
+      sbFilter = "all";
+      sbStatusFilter = "all";
+      ["sbFilters", "sbStatusFilters"].forEach(function (id) {
+        [].slice.call($(id).querySelectorAll("button")).forEach(function (button) {
+          button.classList.toggle("on", (button.getAttribute("data-filter") || button.getAttribute("data-status")) === "all");
+        });
+      });
+      syncSbFilterUi();
+      renderSidebar();
+    });
+    document.addEventListener("pointerdown", function (e) {
+      if (!$("sbMoreToggle").contains(e.target) && !$("sbMoreMenu").contains(e.target) &&
+          !$("sbFilterToggle").contains(e.target) && !$("sbFilterPanel").contains(e.target)) setSbPopup(null);
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape" || ($("sbMoreMenu").hidden && $("sbFilterPanel").hidden)) return;
+      var target = $("sbMoreMenu").hidden ? $("sbFilterToggle") : $("sbMoreToggle");
+      setSbPopup(null);
+      target.focus();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }, true);
     $("discoverSkip").addEventListener("click", function () {
       if (discoveryCurrent) discoverySeen[discoveryCurrent.id] = true;
       discoverNext();
@@ -2804,6 +2853,7 @@
       b.addEventListener("click", function () {
         sbFilter = b.getAttribute("data-filter") || "all";
         [].slice.call($("sbFilters").children).forEach(function (x) { x.classList.toggle("on", x === b); });
+        syncSbFilterUi();
         renderSidebar();
       });
     });
@@ -2811,9 +2861,11 @@
       b.addEventListener("click", function () {
         sbStatusFilter = b.getAttribute("data-status") || "all";
         [].slice.call($("sbStatusFilters").children).forEach(function (x) { x.classList.toggle("on", x === b); });
+        syncSbFilterUi();
         renderSidebar();
       });
     });
+    syncSbFilterUi();
     [].slice.call($("sbDlgType").children).forEach(function (b) {
       b.addEventListener("click", function () { setSbDlgType(b.getAttribute("data-t")); });
     });

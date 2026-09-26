@@ -339,33 +339,47 @@
 }
 .sbRefr{position:absolute;inset:0;border-radius:inherit;z-index:0;pointer-events:none}
  .sbar .head,.sbar .tools,.sbar .canvas,.sbar .hint{position:relative;z-index:1}
+ .sbar .head{z-index:3}.sbar .tools{z-index:2}
 .sbar.open{transform:none}
 .sbar.dropping{border-color:rgba(225,245,255,.44);box-shadow:14px 0 58px rgba(2,7,20,.56)}
-.head{display:flex;align-items:center;gap:10px;padding:15px 16px 10px;flex:0 0 auto}
-.ttl{flex:1;font-size:14px;font-weight:600;letter-spacing:.4px}
- .meta{font-size:11.5px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums}
- .current{height:28px;min-width:28px;padding:0 8px;border-radius:999px;cursor:pointer;color:#fff;
-   background:rgba(235,247,255,.065);border:1px solid rgba(225,244,255,.26);font-size:14px;line-height:1}
- .current:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44)}
- .organize{height:28px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
-   background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.22);font:inherit;font-size:11px}
- .organize:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
- .batch-toggle{height:28px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.82);
-   background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.22);font:inherit;font-size:11px}
- .batch-toggle:hover,.batch-toggle[aria-pressed="true"]{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
- .tools{padding:0 16px 8px;display:flex;flex-direction:column;gap:7px}
- .search{width:100%;height:30px;border-radius:10px;padding:0 10px;outline:none;color:#fff;
-   background:rgba(235,247,255,.052);border:1px solid rgba(225,244,255,.26);font:inherit;font-size:12px}
- .search::placeholder{color:rgba(255,255,255,.48)}
- .search:focus{background:rgba(220,241,255,.085);border-color:rgba(225,245,255,.44)}
- .filters{display:flex;gap:5px}
- .filter{height:24px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.72);
-   background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.20);font:inherit;font-size:11px}
- .filter.on,.filter:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
- .batch-tools{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
- .batch-tools[hidden],.notice[hidden]{display:none}
- .batch-count{margin-right:auto;font-size:11px;color:rgba(255,255,255,.68);font-variant-numeric:tabular-nums}
- .batch-tools button{height:24px;padding:0 8px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.78);
+ .head{display:flex;align-items:center;gap:7px;padding:10px 14px 7px;flex:0 0 auto}
+ .ttl{font-size:14px;font-weight:600;letter-spacing:.4px;white-space:nowrap}
+  .meta{margin-right:auto;font-size:11.5px;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .current{height:32px;min-width:32px;padding:0 7px;border-radius:10px;cursor:pointer;color:#fff;
+    background:rgba(235,247,255,.065);border:1px solid rgba(225,244,255,.26);font-size:14px;line-height:1}
+  .current:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44)}
+  .batch-toggle{height:32px;padding:0 8px;border-radius:10px;cursor:pointer;color:rgba(255,255,255,.82);white-space:nowrap;
+    background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.22);font:inherit;font-size:11px}
+  .batch-toggle:hover,.batch-toggle[aria-pressed="true"]{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
+  .tools{padding:0 14px 8px;display:flex;flex-direction:column;gap:7px}
+  .search-row{display:flex;align-items:center;gap:7px;min-width:0}
+  .search{flex:1;min-width:0;height:32px;border-radius:10px;padding:0 10px;outline:none;color:#fff;
+    background:rgba(235,247,255,.052);border:1px solid rgba(225,244,255,.26);font:inherit;font-size:12px}
+  .search::placeholder{color:rgba(255,255,255,.48)}
+  .search:focus{background:rgba(220,241,255,.085);border-color:rgba(225,245,255,.44)}
+  .filter-toggle,.more-toggle{height:32px;border:1px solid rgba(225,244,255,.26);border-radius:10px;background:rgba(235,247,255,.065);color:rgba(255,255,255,.84);font:inherit;cursor:pointer}
+  .filter-toggle{flex:0 0 auto;display:flex;align-items:center;gap:4px;padding:0 9px;font-size:11px}
+  .more-toggle{width:32px;padding:0;font-size:22px;line-height:1}
+  .filter-toggle:hover,.filter-toggle[aria-expanded="true"],.filter-toggle.active,.more-toggle:hover,.more-toggle[aria-expanded="true"]{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
+  .filter-count{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 3px;border-radius:999px;background:rgba(174,218,255,.26);font-size:10px;font-variant-numeric:tabular-nums}
+  .filter-count[hidden],.filter-panel[hidden],.more-menu[hidden],.batch-tools[hidden],.notice[hidden]{display:none}
+  .filter-panel,.more-menu{position:absolute;z-index:8;border:1px solid rgba(225,245,255,.44);border-radius:14px;background:rgba(10,23,43,.94);box-shadow:0 16px 32px rgba(2,8,24,.42),inset 0 1px rgba(255,255,255,.16);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+  .filter-panel{top:38px;left:14px;right:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .filter-group{display:flex;flex-direction:column;gap:5px}
+  .filter-group>span{font-size:10px;color:rgba(235,247,255,.6)}
+  .more-menu{top:calc(100% - 3px);right:14px;width:150px;padding:5px;display:flex;flex-direction:column;gap:2px}
+  .more-menu button{min-height:32px;padding:5px 9px;border:0;border-radius:8px;background:transparent;color:#fff;text-align:left;font:inherit;font-size:12px;cursor:pointer}
+  .more-menu button:hover,.more-menu button:focus-visible{background:rgba(171,218,255,.14)}
+  .filters{display:flex;gap:5px}
+  .filter{height:27px;padding:0 9px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.72);
+    background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.20);font:inherit;font-size:11px}
+  .filter.on,.filter:hover{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
+  .filter-clear{align-self:flex-start;padding:2px 0;border:0;background:transparent;color:#b9e0ff;font:inherit;font-size:11px;cursor:pointer}
+  .filter-clear:disabled{opacity:.45;cursor:default}
+  :is(.batch-toggle,.current,.more-toggle,.filter-toggle,.filter,.filter-clear,.organize,.batch-tools button):focus-visible{outline:2px solid rgba(192,232,255,.95);outline-offset:2px}
+  .batch-tools{display:flex;align-items:center;justify-content:space-between;gap:3px;min-width:0}
+  .batch-count{font-size:10px;color:rgba(255,255,255,.68);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .batch-tools button{height:26px;padding:0 5px;border-radius:999px;cursor:pointer;color:rgba(255,255,255,.78);white-space:nowrap;
    background:rgba(235,247,255,.055);border:1px solid rgba(225,244,255,.20);font:inherit;font-size:10.5px}
  .batch-tools button:hover:not(:disabled),.batch-tools button:focus-visible{background:rgba(171,218,255,.14);border-color:rgba(225,245,255,.44);color:#fff}
  .batch-tools button:disabled{cursor:not-allowed;opacity:.42}
@@ -437,11 +451,18 @@
     '<div class="zone" title="收集板"></div>' +
     '<aside class="sbar">' +
      '<div class="sbRefr" data-glass data-lg-str=".09" data-lg-band=".13" data-lg-disp="0" aria-hidden="true"></div>' +
-     '<div class="head"><span class="ttl">收集板</span><span class="meta">0 项</span><button type="button" class="organize" title="一键整理" aria-label="一键整理">整理</button><button type="button" class="batch-toggle" title="批量管理" aria-label="批量管理" aria-pressed="false">批量</button><button type="button" class="current" title="收藏当前网页" aria-label="收藏当前网页">＋</button></div>' +
-     '<div class="tools"><input class="search" type="search" placeholder="搜索标题、网址、文字或标签" aria-label="搜索收集板">' +
-     '<div class="filters" role="group" aria-label="收集板筛选"><button type="button" class="filter on" data-filter="all">全部</button>' +
-     '<button type="button" class="filter" data-filter="link">链接</button><button type="button" class="filter" data-filter="image">图片</button>' +
-     '<button type="button" class="filter" data-filter="text">笔记</button></div>' +
+      '<div class="head"><span class="ttl">收集板</span><span class="meta">0 项</span>' +
+      '<button type="button" class="batch-toggle" title="批量管理" aria-label="进入批量管理" aria-pressed="false">多选</button>' +
+      '<button type="button" class="current" title="收藏当前网页" aria-label="收藏当前网页">＋</button>' +
+      '<button type="button" class="more-toggle" title="更多操作" aria-label="更多操作" aria-controls="lg-collect-more-menu" aria-expanded="false">⋯</button>' +
+      '<div class="more-menu" id="lg-collect-more-menu" hidden><button type="button" class="organize">整理收集板</button></div></div>' +
+      '<div class="tools"><div class="search-row"><input class="search" type="search" placeholder="搜索收藏…" aria-label="搜索收集板">' +
+      '<button type="button" class="filter-toggle" aria-controls="lg-collect-filter-panel" aria-expanded="false">筛选<span class="filter-count" hidden></span></button></div>' +
+      '<div class="filter-panel" id="lg-collect-filter-panel" hidden><div class="filter-group"><span>类型</span>' +
+      '<div class="filters" role="group" aria-label="收集板类型筛选"><button type="button" class="filter on" data-filter="all">全部</button>' +
+      '<button type="button" class="filter" data-filter="link">链接</button><button type="button" class="filter" data-filter="image">图片</button>' +
+      '<button type="button" class="filter" data-filter="text">笔记</button></div></div>' +
+      '<button type="button" class="filter-clear" disabled>清除筛选</button></div>' +
      '<div class="batch-tools" hidden aria-label="收集板批量操作"><span class="batch-count" aria-live="polite">已选 0 项</span>' +
      '<button type="button" class="select-all">全选当前</button><button type="button" class="clear-selection">清空选择</button>' +
      '<button type="button" class="delete-selected" disabled>删除所选</button></div></div>' +
@@ -457,6 +478,9 @@
   var meta = sh.querySelector(".meta");
   var organizeBtn = sh.querySelector(".organize");
   var currentBtn = sh.querySelector(".current");
+  var moreToggle = sh.querySelector(".more-toggle"), moreMenu = sh.querySelector(".more-menu");
+  var filterToggle = sh.querySelector(".filter-toggle"), filterPanel = sh.querySelector(".filter-panel");
+  var filterCount = sh.querySelector(".filter-count"), clearFilters = sh.querySelector(".filter-clear");
   var batchMode = false, selectedIds = Object.create(null), undoSnapshot = null, undoTimer = 0;
   var batchToggle = sh.querySelector(".batch-toggle");
   var batchTools = sh.querySelector(".batch-tools");
@@ -470,6 +494,37 @@
   var noticeTimer = 0;
   var searchInput = sh.querySelector(".search");
   var filterButtons = [].slice.call(sh.querySelectorAll(".filter"));
+
+  function setPopup(kind) {
+    moreMenu.hidden = kind !== "more";
+    filterPanel.hidden = kind !== "filter";
+    moreToggle.setAttribute("aria-expanded", String(kind === "more"));
+    filterToggle.setAttribute("aria-expanded", String(kind === "filter"));
+  }
+  function syncFilterUi() {
+    var active = filterType !== "all";
+    filterCount.textContent = active ? "1" : "";
+    filterCount.hidden = !active;
+    filterToggle.classList.toggle("active", active);
+    filterToggle.setAttribute("aria-label", active ? "筛选收集板，已启用 1 项筛选" : "筛选收集板");
+    clearFilters.disabled = !active;
+    filterButtons.forEach(function (button) {
+      button.setAttribute("aria-pressed", String(button.classList.contains("on")));
+    });
+  }
+  moreToggle.addEventListener("click", function () { setPopup(moreMenu.hidden ? "more" : null); });
+  filterToggle.addEventListener("click", function () { setPopup(filterPanel.hidden ? "filter" : null); });
+  clearFilters.addEventListener("click", function () {
+    filterType = "all";
+    filterButtons.forEach(function (button) { button.classList.toggle("on", button.getAttribute("data-filter") === "all"); });
+    syncFilterUi();
+    render();
+  });
+  sh.addEventListener("pointerdown", function (e) {
+    if (!moreToggle.contains(e.target) && !moreMenu.contains(e.target) &&
+        !filterToggle.contains(e.target) && !filterPanel.contains(e.target)) setPopup(null);
+  });
+  document.addEventListener("pointerdown", function (e) { if (e.target !== host) setPopup(null); });
   var dragCard = null, dragFrame = 0, suppressCardClickUntil = 0;
 
   searchInput.addEventListener("input", function () {
@@ -480,9 +535,11 @@
     button.addEventListener("click", function () {
       filterType = button.getAttribute("data-filter") || "all";
       filterButtons.forEach(function (other) { other.classList.toggle("on", other === button); });
+      syncFilterUi();
       render();
     });
   });
+  syncFilterUi();
   function visibleItems() {
     return st.sidebar.filter(function (item) { return CORE.matches(item, searchQuery, filterType); });
   }
@@ -500,7 +557,9 @@
     pruneSelection();
     var chosen = selectedItems().length;
     var visible = visibleItems().length;
-    batchToggle.textContent = batchMode ? "退出批量" : "批量";
+    batchToggle.textContent = batchMode ? "退出" : "多选";
+    batchToggle.title = batchMode ? "退出批量管理" : "批量管理";
+    batchToggle.setAttribute("aria-label", batchMode ? "退出批量管理" : "进入批量管理");
     batchToggle.setAttribute("aria-pressed", batchMode ? "true" : "false");
     batchTools.hidden = !batchMode;
     batchCount.textContent = "已选 " + chosen + " 项";
@@ -633,7 +692,7 @@
     organizeBtn.textContent = "已整理";
     setTimeout(function () { organizeBtn.textContent = oldText; }, 1200);
   }
-  organizeBtn.addEventListener("click", organizeSidebar);
+  organizeBtn.addEventListener("click", function () { setPopup(null); organizeSidebar(); });
   currentBtn.addEventListener("click", function () {
     var added = addItem({ type: "link", url: location.href, title: document.title || location.hostname });
     var oldText = currentBtn.textContent;
@@ -1100,6 +1159,7 @@
   function closeBar() {
     if (!openState) return;
     openState = false;
+    setPopup(null);
     bar.classList.remove("open");
   }
   function scheduleClose() {
@@ -1112,6 +1172,13 @@
   bar.addEventListener("mouseleave", scheduleClose);
   document.addEventListener("keydown", function (e) {
     if (e.key !== "Escape") return;
+    if (!moreMenu.hidden || !filterPanel.hidden) {
+      var target = moreMenu.hidden ? filterToggle : moreToggle;
+      setPopup(null);
+      target.focus();
+      e.preventDefault();
+      return;
+    }
     if (batchMode) {
       leaveBatchMode();
       return;

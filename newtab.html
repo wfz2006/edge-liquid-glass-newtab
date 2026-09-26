@@ -388,23 +388,32 @@
   <div class="sbhead">
     <span class="sbtitle">收集板</span>
     <span class="sbmeta" id="sbMeta">0 项</span>
-    <button type="button" class="sborganize" id="sbDiscover" title="随机翻翻未处理的收藏">随便翻翻</button>
-    <button type="button" class="sborganize" id="sbOrganize" title="一键整理" aria-label="一键整理">整理</button>
-    <button type="button" class="sbbatchtoggle" id="sbBatchToggle" title="批量管理" aria-label="批量管理" aria-pressed="false">批量</button>
+    <button type="button" class="sbbatchtoggle" id="sbBatchToggle" title="批量管理" aria-label="进入批量管理" aria-pressed="false">多选</button>
     <button type="button" class="sbadd" id="sbAdd" title="手动添加" aria-label="手动添加">+</button>
+    <button type="button" class="sbmoretoggle" id="sbMoreToggle" title="更多操作" aria-label="更多操作" aria-controls="sbMoreMenu" aria-expanded="false">⋯</button>
+    <div class="sbmoremenu" id="sbMoreMenu" hidden>
+      <button type="button" id="sbDiscover">随便翻翻</button>
+      <button type="button" id="sbOrganize">整理收集板</button>
+    </div>
   </div>
   <div class="sbtools">
-    <input id="sbSearch" class="sbsearch" type="search" placeholder="搜索标题、网址、文字或标签" aria-label="搜索收集板">
-    <div class="sbfilters" id="sbFilters" role="group" aria-label="收集板筛选">
-      <button type="button" data-filter="all" class="on">全部</button>
-      <button type="button" data-filter="link">链接</button>
-      <button type="button" data-filter="image">图片</button>
-      <button type="button" data-filter="text">笔记</button>
+    <div class="sbsearchrow">
+      <input id="sbSearch" class="sbsearch" type="search" placeholder="搜索收藏…" aria-label="搜索收集板">
+      <button type="button" class="sbfiltertoggle" id="sbFilterToggle" aria-controls="sbFilterPanel" aria-expanded="false">筛选<span id="sbFilterCount" class="sbfiltercount" hidden></span></button>
     </div>
-    <div class="sbfilters sbstatusfilters" id="sbStatusFilters" role="group" aria-label="阅读状态">
-      <button type="button" data-status="all" class="on">全部状态</button>
-      <button type="button" data-status="later">稍后看</button>
-      <button type="button" data-status="done">已归档</button>
+    <div class="sbfilterpanel" id="sbFilterPanel" hidden>
+      <div class="sbfiltergroup"><span>类型</span><div class="sbfilters" id="sbFilters" role="group" aria-label="收集板类型筛选">
+        <button type="button" data-filter="all" class="on">全部</button>
+        <button type="button" data-filter="link">链接</button>
+        <button type="button" data-filter="image">图片</button>
+        <button type="button" data-filter="text">笔记</button>
+      </div></div>
+      <div class="sbfiltergroup"><span>状态</span><div class="sbfilters sbstatusfilters" id="sbStatusFilters" role="group" aria-label="阅读状态">
+        <button type="button" data-status="all" class="on">全部</button>
+        <button type="button" data-status="later">稍后看</button>
+        <button type="button" data-status="done">已归档</button>
+      </div></div>
+      <button type="button" class="sbfilterclear" id="sbClearFilters" disabled>清除筛选</button>
     </div>
     <div class="sbbatchtools" id="sbBatchTools" hidden aria-label="收集板批量操作">
       <span class="sbbatchcount" id="sbBatchCount" aria-live="polite">已选 0 项</span>

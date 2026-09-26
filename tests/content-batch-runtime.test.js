@@ -100,6 +100,10 @@ class StubElement {
   get isConnected() { return true; }
   getBoundingClientRect() { return { width: 0, height: 0 }; }
   closest() { return null; }
+  contains(node) {
+    for (let current = node; current; current = current.parentNode) if (current === this) return true;
+    return false;
+  }
 
   set innerHTML(value) {
     this._innerHTML = String(value);
@@ -157,7 +161,8 @@ class StubShadow extends StubElement {
     add("div", "zone");
     add("aside", "sbar");
     add("div", "sbRefr", { "data-glass": "", "aria-hidden": "true" });
-    ["ttl", "meta", "head", "organize", "batch-toggle", "current", "tools", "search", "filters", "batch-tools", "batch-count", "select-all", "clear-selection", "delete-selected", "canvas", "notice", "notice-text", "notice-undo", "hint"].forEach((name) => add(name === "search" ? "input" : name.indexOf("button") >= 0 ? "button" : "div", name));
+    ["ttl", "meta", "head", "organize", "batch-toggle", "current", "more-toggle", "more-menu", "tools", "search", "filter-toggle", "filter-count", "filter-panel", "filter-clear", "filters", "batch-tools", "batch-count", "select-all", "clear-selection", "delete-selected", "canvas", "notice", "notice-text", "notice-undo", "hint"].forEach((name) => add(name === "search" ? "input" : "div", name));
+    ["more-menu", "filter-panel", "filter-count"].forEach((name) => { this.controls["." + name].hidden = true; });
     this.controls[".batch-toggle"].setAttribute("aria-pressed", "false");
     this.controls[".notice"].setAttribute("role", "status");
     this.controls[".notice"].setAttribute("aria-live", "polite");
@@ -166,6 +171,7 @@ class StubShadow extends StubElement {
     this.filters = ["all", "link", "image", "text"].map((type) => {
       const button = this.ownerDocument.createElement("button");
       button.classList.add("filter");
+      if (type === "all") button.classList.add("on");
       button.setAttribute("data-filter", type);
       this.controls[".filters"].appendChild(button);
       return button;
@@ -307,6 +313,23 @@ harness.storage.local.get("lg.newtab", (box) => { rereadSnapshot = box["lg.newta
 assert.strictEqual(rereadSnapshot.sidebar[0].title, "构造器", "storage.get should return cloned snapshots");
 
 hook.open();
+const filterToggle = shadow.querySelector(".filter-toggle");
+const filterPanel = shadow.querySelector(".filter-panel");
+const filterCount = shadow.querySelector(".filter-count");
+filterToggle.click();
+assert.strictEqual(filterPanel.hidden, false, "filter panel should open over the board");
+shadow.filters[1].click();
+assert.strictEqual(filterCount.textContent, "1", "active filters should be visible from the compact toolbar");
+assert.deepStrictEqual(readState().visibleIds, ["constructor", "toString"], "popup filter should still filter cards");
+shadow.querySelector(".filter-clear").click();
+assert.strictEqual(filterCount.hidden, true, "clearing filters should remove the active indicator");
+assert.strictEqual(readState().visibleIds.length, 3, "clearing filters should restore all cards");
+const moreToggle = shadow.querySelector(".more-toggle");
+moreToggle.click();
+assert.strictEqual(shadow.querySelector(".more-menu").hidden, false, "more menu should open");
+document.dispatchEvent({ type: "keydown", key: "Escape" });
+assert.strictEqual(shadow.querySelector(".more-menu").hidden, true, "Escape should dismiss the menu first");
+assert.strictEqual(hook.isOpen(), true, "dismissing the menu should keep the board open");
 const ordinaryCard = renderedCard("constructor");
 assert.ok(ordinaryCard, "ordinary mode should render a link card into the closed shadow root");
 assert.strictEqual(ordinaryCard.listeners.pointerdown.length, 1, "ordinary mode should retain the card pointer-drag path");
